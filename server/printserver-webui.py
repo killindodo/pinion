@@ -784,18 +784,37 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         # Silence routine request logging
         pass
 
-    def do_GET(self):
+    def do_HEAD(self):
         if self.path == "/" or self.path.startswith("/index"):
+            body = HTML_PAGE.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
         elif self.path == "/api/status":
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.end_headers()
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_GET(self):
+        if self.path == "/" or self.path.startswith("/index"):
+            body = HTML_PAGE.encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path == "/api/status":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
             data = get_cups_status()
-            self.wfile.write(json.dumps(data).encode("utf-8"))
+            resp = json.dumps(data).encode("utf-8")
+            self.send_header("Content-Length", str(len(resp)))
+            self.end_headers()
+            self.wfile.write(resp)
         else:
             self.send_response(404)
             self.end_headers()

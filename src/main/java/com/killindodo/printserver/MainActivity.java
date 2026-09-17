@@ -123,7 +123,7 @@ public class MainActivity extends Activity {
     private TextView tvTitleApple;
     private TextView tvTitleLinux;
 
-    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+    private final ExecutorService executor = Executors.newCachedThreadPool();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
@@ -234,14 +234,36 @@ public class MainActivity extends Activity {
 
         // Open Pinion Web Dashboard Click (:8080)
         btnOpenWebUi.setOnClickListener(v -> {
-            String webUrl = "http://" + currentIp + ":8080";
+            String networkUrl = "http://" + currentIp + ":8080";
+            String localUrl = "http://127.0.0.1:8080";
             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Pinion Web Dashboard URL", webUrl);
+            ClipData clip = ClipData.newPlainText("Pinion Web Dashboard URL", networkUrl);
             if (clipboard != null) clipboard.setPrimaryClip(clip);
-            Toast.makeText(MainActivity.this, "Opening Web UI & Copied: " + webUrl, Toast.LENGTH_SHORT).show();
 
-            Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(webUrl));
-            startActivity(browserIntent);
+            if (!isServerRunning) {
+                Toast.makeText(MainActivity.this, "Starting server first...", Toast.LENGTH_SHORT).show();
+                executor.execute(() -> {
+                    ensureStartupScriptExists();
+                    runRootCommand("/data/local/bin/start-printserver.sh");
+                    try {
+                        for (int i = 0; i < 6; i++) {
+                            Thread.sleep(500);
+                            if (checkCupsRunning()) break;
+                        }
+                    } catch (InterruptedException ignored) {}
+
+                    mainHandler.post(() -> {
+                        refreshStatus();
+                        Toast.makeText(MainActivity.this, "Opening Web UI & Copied: " + networkUrl, Toast.LENGTH_SHORT).show();
+                        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(localUrl));
+                        startActivity(browserIntent);
+                    });
+                });
+            } else {
+                Toast.makeText(MainActivity.this, "Opening Web UI & Copied: " + networkUrl, Toast.LENGTH_SHORT).show();
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(localUrl));
+                startActivity(browserIntent);
+            }
         });
 
         // Copy Printer IPP URL to Clipboard
@@ -529,17 +551,38 @@ public class MainActivity extends Activity {
 
     private void ensureStartupScriptExists() {
         runRootCommand("mkdir -p /data/local/bin; "
-                + "if [ ! -f /data/local/bin/start-printserver.sh ]; then "
-                + "echo '#!/system/bin/sh' > /data/local/bin/start-printserver.sh; "
-                + "echo 'ROOTFS=/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs' >> /data/local/bin/start-printserver.sh; "
-                + "echo 'mountpoint -q $ROOTFS/proc || mount -t proc proc $ROOTFS/proc' >> /data/local/bin/start-printserver.sh; "
-                + "echo 'mountpoint -q $ROOTFS/sys || mount -t sysfs sysfs $ROOTFS/sys' >> /data/local/bin/start-printserver.sh; "
-                + "echo 'mountpoint -q $ROOTFS/dev || mount -o bind /dev $ROOTFS/dev' >> /data/local/bin/start-printserver.sh; "
-                + "echo 'chmod -R 666 /dev/bus/usb' >> /data/local/bin/start-printserver.sh; "
-                + "echo 'chroot $ROOTFS /bin/bash -c \"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; export TMPDIR=/tmp; service dbus restart; avahi-daemon -D 2>/dev/null; cupsd\"' >> /data/local/bin/start-printserver.sh; "
-                + "echo '/system/bin/nohup chroot $ROOTFS /usr/bin/python3 /usr/local/bin/printserver-webui.py >/data/local/tmp/webui.log 2>&1 &' >> /data/local/bin/start-printserver.sh; "
-                + "chmod +x /data/local/bin/start-printserver.sh; "
-                + "fi");
+                + "cat << 'EOF' > /data/local/bin/start-printserver.sh\n"
+                + "#!/system/bin/sh\n"
+                + "ROOTFS=\"/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs\"\n"
+                + "echo \"printserver\" > /sys/power/wake_lock 2>/dev/null\n"
+                + "chmod -R 666 /dev/bus/usb 2>/dev/null\n"
+                + "chmod -R 666 /dev/usb 2>/dev/null\n"
+                + "mount -o remount,exec /data 2>/dev/null\n"
+                + "mountpoint -q $ROOTFS/proc || mount -t proc proc $ROOTFS/proc\n"
+                + "mountpoint -q $ROOTFS/sys  || mount -t sysfs sysfs $ROOTFS/sys\n"
+                + "mountpoint -q $ROOTFS/dev  || mount -o bind /dev $ROOTFS/dev\n"
+                + "mountpoint -q $ROOTFS/dev/pts || mount -t devpts devpts $ROOTFS/dev/pts\n"
+                + "echo \"nameserver 1.1.1.1\" > $ROOTFS/etc/resolv.conf\n"
+                + "echo \"nameserver 8.8.8.8\" >> $ROOTFS/etc/resolv.conf\n"
+                + "mkdir -p $ROOTFS/run/dbus $ROOTFS/run/cups $ROOTFS/tmp $ROOTFS/data/local/tmp\n"
+                + "chmod 1777 $ROOTFS/tmp $ROOTFS/data/local/tmp\n"
+                + "killall cupsd avahi-daemon dbus-daemon 2>/dev/null\n"
+                + "pkill -f printserver-webui.py 2>/dev/null\n"
+                + "rm -f $ROOTFS/run/dbus/pid $ROOTFS/run/cups/cups.sock $ROOTFS/run/dbus/system_bus_socket $ROOTFS/run/avahi-daemon/pid\n"
+                + "chroot $ROOTFS /bin/bash -c \"\n"
+                + "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
+                + "export TMPDIR=/tmp\n"
+                + "export HOME=/root\n"
+                + "/usr/bin/dbus-daemon --system >/dev/null 2>&1\n"
+                + "avahi-daemon -D >/dev/null 2>&1\n"
+                + "cupsd >/dev/null 2>&1\n"
+                + "\" </dev/null >/dev/null 2>&1\n"
+                + "nohup chroot $ROOTFS /bin/bash -c \"\n"
+                + "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
+                + "python3 /usr/local/bin/printserver-webui.py\n"
+                + "\" </dev/null >/data/local/tmp/webui.log 2>&1 &\n"
+                + "EOF\n"
+                + "chmod +x /data/local/bin/start-printserver.sh");
     }
 
     private boolean checkRootAccess() {
@@ -657,23 +700,29 @@ public class MainActivity extends Activity {
 
     private String runRootCommand(String command) {
         StringBuilder output = new StringBuilder();
+        Process process = null;
         try {
-            Process process = Runtime.getRuntime().exec("su");
-            DataOutputStream os = new DataOutputStream(process.getOutputStream());
-            BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
+            process = Runtime.getRuntime().exec("su");
+            try (DataOutputStream os = new DataOutputStream(process.getOutputStream())) {
+                os.writeBytes(command + "\n");
+                os.writeBytes("exit\n");
+                os.flush();
+            }
 
-            os.writeBytes(command + "\n");
-            os.writeBytes("exit\n");
-            os.flush();
-
-            String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    output.append(line).append("\n");
+                }
             }
             process.waitFor();
             return output.toString();
         } catch (Exception e) {
             return null;
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
         }
     }
 }
