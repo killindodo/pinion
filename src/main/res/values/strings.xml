@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">PrintServer Root</string>
+    <string name="author_tag">Made with love by killindodo</string>
+    <string name="github_url">https://www.github.com/killindodo</string>
+    <string name="github_text">www.github.com/killindodo</string>
+</resources>
