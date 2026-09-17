@@ -791,35 +791,55 @@ def get_cups_status():
         pass
 
     usb_attached = False
-    try:
-        dev_lp = subprocess.check_output("ls /dev/usb/lp* 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
-        if "/dev/usb/lp" in dev_lp:
-            usb_attached = True
-        else:
-            lsusb_out = subprocess.check_output("lsusb 2>/dev/null || true", shell=True, text=True, env=ENV_PATH).lower()
-            if "printer" in lsusb_out or "print" in lsusb_out or "class=07" in lsusb_out or "binterfaceclass 7" in lsusb_out:
-                usb_attached = True
-    except Exception:
-        pass
-
-    printer_name = f"Printer ({queue_name})" if queue_name != "<PRINTER_NAME>" else "USB Printer"
-    if not usb_attached:
-        printer_name += " (USB Disconnected)"
-
     waiting_for_printer = False
+
+    # 1. Check CUPS queue status directly: if lpstat -p says "is idle" or "is printing", printer is connected
     try:
         p_out = subprocess.check_output("lpstat -p 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
         if "Waiting for printer" in p_out:
             waiting_for_printer = True
+            usb_attached = False
             queue_state = "Waiting for printer (Offline / USB Disconnected)"
         elif "is idle" in p_out:
-            queue_state = "Accepting jobs, idle" if usb_attached else "Idle (USB Disconnected)"
+            usb_attached = True
+            queue_state = "Accepting jobs, idle"
         elif "is printing" in p_out:
-            queue_state = "Printing..." if usb_attached else "Printing paused (USB Disconnected)"
+            usb_attached = True
+            queue_state = "Printing..."
         elif "disabled" in p_out:
             queue_state = "Queue paused"
     except Exception:
         pass
+
+    # 2. Check hardware bus if not already determined
+    if not usb_attached and not waiting_for_printer:
+        try:
+            v_out = subprocess.check_output("lpinfo -v 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
+            if "usb://" in v_out:
+                usb_attached = True
+        except Exception:
+            pass
+
+    if not usb_attached and not waiting_for_printer:
+        try:
+            dev_lp = subprocess.check_output("ls /dev/usb/lp* 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
+            if "/dev/usb/lp" in dev_lp:
+                usb_attached = True
+            else:
+                lsusb_out = subprocess.check_output("lsusb 2>/dev/null || true", shell=True, text=True, env=ENV_PATH).lower()
+                if any(kw in lsusb_out for kw in ["printer", "print", "class=07", "binterfaceclass 7", "laserjet", "deskjet", "hewlett-packard", "canon", "epson", "brother", "03f0:"]):
+                    usb_attached = True
+                elif lsusb_out.strip():
+                    for line in lsusb_out.strip().split("\n"):
+                        if "1d6b:" not in line and ("device" in line or "id " in line):
+                            usb_attached = True
+                            break
+        except Exception:
+            pass
+
+    printer_name = f"Printer ({queue_name})" if queue_name != "<PRINTER_NAME>" else "USB Printer"
+    if not usb_attached:
+        printer_name += " (USB Disconnected)"
 
     # Active jobs
     jobs = []

@@ -910,6 +910,7 @@ public class MainActivity extends Activity {
 
     private String checkUsbPrinter() {
         String rootfs = getRootfsPath();
+        String pOut = "";
         if (rootfs != null) {
             String queueOut = runRootCommand("chroot " + rootfs + " /usr/bin/lpstat -d 2>/dev/null || true");
             if (queueOut != null && queueOut.contains("system default destination:")) {
@@ -921,7 +922,7 @@ public class MainActivity extends Activity {
                     }
                 }
             } else {
-                String pOut = runRootCommand("chroot " + rootfs + " /usr/bin/lpstat -p 2>/dev/null || true");
+                pOut = runRootCommand("chroot " + rootfs + " /usr/bin/lpstat -p 2>/dev/null || true");
                 if (pOut != null && pOut.contains("printer ")) {
                     try {
                         String firstLine = pOut.split("\n")[0];
@@ -937,16 +938,49 @@ public class MainActivity extends Activity {
             }
         }
 
+        if ((pOut == null || pOut.isEmpty()) && rootfs != null) {
+            pOut = runRootCommand("chroot " + rootfs + " /usr/bin/lpstat -p 2>/dev/null || true");
+        }
+
         boolean usbAttached = false;
-        String devLp = runRootCommand("ls /dev/usb/lp* 2>/dev/null");
-        if (devLp != null && devLp.contains("/dev/usb/lp")) {
-            usbAttached = true;
-        } else {
-            String result = runRootCommand("lsusb 2>/dev/null || dumpsys usb 2>/dev/null || true");
-            if (result != null && !result.trim().isEmpty()) {
-                String lower = result.toLowerCase();
-                if (lower.contains("printer") || lower.contains("print") || lower.contains("class=07") || lower.contains("binterfaceclass 7")) {
-                    usbAttached = true;
+        boolean waitingForPrinter = false;
+
+        if (pOut != null && !pOut.isEmpty()) {
+            if (pOut.contains("Waiting for printer")) {
+                waitingForPrinter = true;
+                usbAttached = false;
+            } else if (pOut.contains("is idle") || pOut.contains("is printing")) {
+                usbAttached = true;
+            }
+        }
+
+        if (!usbAttached && !waitingForPrinter && rootfs != null) {
+            String vOut = runRootCommand("chroot " + rootfs + " /usr/sbin/lpinfo -v 2>/dev/null || true");
+            if (vOut != null && vOut.contains("usb://")) {
+                usbAttached = true;
+            }
+        }
+
+        if (!usbAttached && !waitingForPrinter) {
+            String devLp = runRootCommand("ls /dev/usb/lp* 2>/dev/null");
+            if (devLp != null && devLp.contains("/dev/usb/lp")) {
+                usbAttached = true;
+            } else {
+                String result = runRootCommand("lsusb 2>/dev/null || dumpsys usb 2>/dev/null || true");
+                if (result != null && !result.trim().isEmpty()) {
+                    String lower = result.toLowerCase();
+                    if (lower.contains("printer") || lower.contains("print") || lower.contains("class=07") || lower.contains("binterfaceclass 7")
+                            || lower.contains("laserjet") || lower.contains("deskjet") || lower.contains("hewlett-packard")
+                            || lower.contains("canon") || lower.contains("epson") || lower.contains("brother") || lower.contains("03f0:")) {
+                        usbAttached = true;
+                    } else {
+                        for (String line : result.split("\n")) {
+                            if (!line.contains("1d6b:") && (line.contains("Device") || line.contains("ID "))) {
+                                usbAttached = true;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
         }
