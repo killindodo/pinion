@@ -190,6 +190,15 @@
                         android:textSize="13sp" />
 
                     <TextView
+                        android:id="@+id/tv_queue_status"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="Spooler: Queue Idle (0 active jobs)"
+                        android:textColor="@color/text_muted"
+                        android:textSize="12sp" />
+
+                    <TextView
                         android:id="@+id/tv_root_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
@@ -321,6 +330,41 @@
                             android:minHeight="44dp"
                             android:paddingVertical="8dp"
                             android:text="🖨️ Test Print"
+                            android:textColor="@color/text_primary"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:orientation="horizontal">
+
+                        <Button
+                            android:id="@+id/btn_clear_queue"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginEnd="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/btn_action_style"
+                            android:minHeight="44dp"
+                            android:paddingVertical="8dp"
+                            android:text="🧹 Clear Queue"
+                            android:textColor="@color/text_primary"
+                            android:textSize="12sp"
+                            android:textStyle="bold" />
+
+                        <Button
+                            android:id="@+id/btn_open_cups"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="6dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/btn_action_style"
+                            android:minHeight="44dp"
+                            android:paddingVertical="8dp"
+                            android:text="⚙️ CUPS Admin"
                             android:textColor="@color/text_primary"
                             android:textSize="12sp"
                             android:textStyle="bold" />
@@ -475,8 +519,8 @@
             android:layout_height="wrap_content"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingTop="8dp"
-            android:paddingBottom="6dp">
+            android:paddingTop="12dp"
+            android:paddingBottom="16dp">
 
             <TextView
                 android:id="@+id/tv_footer_branding"

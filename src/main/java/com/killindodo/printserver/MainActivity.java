@@ -20,6 +20,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
@@ -28,11 +29,15 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -97,6 +102,7 @@ public class MainActivity extends Activity {
     private TextView tvIpAddress;
     private TextView tvWifiSsid;
     private TextView tvPrinterModel;
+    private TextView tvQueueStatus;
     private TextView tvRootStatus;
     private TextView tvGuideWindows;
     private TextView tvGuideLinux;
@@ -108,6 +114,8 @@ public class MainActivity extends Activity {
     private Button btnStop;
     private Button btnRestart;
     private Button btnTestPage;
+    private Button btnClearQueue;
+    private Button btnOpenCups;
 
     // Card Views for dynamic theming
     private View cardStatus;
@@ -158,6 +166,7 @@ public class MainActivity extends Activity {
         tvIpAddress = findViewById(R.id.tv_ip_address);
         tvWifiSsid = findViewById(R.id.tv_wifi_ssid);
         tvPrinterModel = findViewById(R.id.tv_printer_model);
+        tvQueueStatus = findViewById(R.id.tv_queue_status);
         tvRootStatus = findViewById(R.id.tv_root_status);
         tvGuideWindows = findViewById(R.id.tv_guide_windows);
         tvGuideLinux = findViewById(R.id.tv_guide_linux);
@@ -170,6 +179,8 @@ public class MainActivity extends Activity {
         btnStop = findViewById(R.id.btn_stop);
         btnRestart = findViewById(R.id.btn_restart);
         btnTestPage = findViewById(R.id.btn_test_page);
+        btnClearQueue = findViewById(R.id.btn_clear_queue);
+        btnOpenCups = findViewById(R.id.btn_open_cups);
 
         cardStatus = findViewById(R.id.card_status);
         cardControls = findViewById(R.id.card_controls);
@@ -212,14 +223,14 @@ public class MainActivity extends Activity {
             window.setNavigationBarColor(currentTheme.bg);
         }
 
-        // Apply snug top padding (exact status bar height + 4dp) to eliminate all wasted top void
+        // Apply snug top padding (exact status bar height + 4dp) and balanced bottom padding (16dp)
         View rootContainer = findViewById(R.id.root_container);
         if (rootContainer != null) {
             rootContainer.setPadding(
                     dpToPx(14),
                     statusBarHeight + dpToPx(4),
                     dpToPx(14),
-                    dpToPx(8)
+                    dpToPx(16)
             );
         }
 
@@ -240,30 +251,31 @@ public class MainActivity extends Activity {
             ClipData clip = ClipData.newPlainText("Pinion Web Dashboard URL", networkUrl);
             if (clipboard != null) clipboard.setPrimaryClip(clip);
 
-            if (!isServerRunning) {
-                Toast.makeText(MainActivity.this, "Starting server first...", Toast.LENGTH_SHORT).show();
-                executor.execute(() -> {
+            Toast.makeText(MainActivity.this, "Connecting to Web UI...", Toast.LENGTH_SHORT).show();
+            executor.execute(() -> {
+                if (!checkPortOpen(8080, 400)) {
                     ensureStartupScriptExists();
                     runRootCommand("/data/local/bin/start-printserver.sh");
-                    try {
-                        for (int i = 0; i < 6; i++) {
-                            Thread.sleep(500);
-                            if (checkCupsRunning()) break;
-                        }
-                    } catch (InterruptedException ignored) {}
+                    for (int i = 0; i < 20; i++) {
+                        try {
+                            Thread.sleep(300);
+                        } catch (InterruptedException ignored) {}
+                        if (checkPortOpen(8080, 400)) break;
+                    }
+                }
 
-                    mainHandler.post(() -> {
-                        refreshStatus();
-                        Toast.makeText(MainActivity.this, "Opening Web UI & Copied: " + networkUrl, Toast.LENGTH_SHORT).show();
-                        Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(localUrl));
+                mainHandler.post(() -> {
+                    refreshStatus();
+                    Toast.makeText(MainActivity.this, "Web UI Ready • Copied: " + networkUrl, Toast.LENGTH_SHORT).show();
+                    Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(localUrl));
+                    browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                    try {
                         startActivity(browserIntent);
-                    });
+                    } catch (Exception e) {
+                        Toast.makeText(MainActivity.this, "No browser installed to open Web UI", Toast.LENGTH_SHORT).show();
+                    }
                 });
-            } else {
-                Toast.makeText(MainActivity.this, "Opening Web UI & Copied: " + networkUrl, Toast.LENGTH_SHORT).show();
-                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(localUrl));
-                startActivity(browserIntent);
-            }
+            });
         });
 
         // Copy Printer IPP URL to Clipboard
@@ -282,6 +294,22 @@ public class MainActivity extends Activity {
         btnStop.setOnClickListener(v -> executeRootAction("STOP"));
         btnRestart.setOnClickListener(v -> executeRootAction("RESTART"));
         btnTestPage.setOnClickListener(v -> executeRootAction("TEST_PAGE"));
+        if (btnClearQueue != null) {
+            btnClearQueue.setOnClickListener(v -> executeRootAction("CLEAR_QUEUE"));
+        }
+        if (btnOpenCups != null) {
+            btnOpenCups.setOnClickListener(v -> {
+                String cupsUrl = "http://127.0.0.1:631";
+                Toast.makeText(MainActivity.this, "Opening CUPS Admin (:631)", Toast.LENGTH_SHORT).show();
+                Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(cupsUrl));
+                browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                try {
+                    startActivity(browserIntent);
+                } catch (Exception e) {
+                    Toast.makeText(MainActivity.this, "No browser installed", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
 
         // Register Real-Time Network Observer
         setupNetworkObserver();
@@ -368,12 +396,15 @@ public class MainActivity extends Activity {
         applyActionButtonStyle(btnCopyUrl, t);
         applyActionButtonStyle(btnOpenWebUi, t);
         applyActionButtonStyle(btnRestart, t);
+        applyActionButtonStyle(btnClearQueue, t);
+        applyActionButtonStyle(btnOpenCups, t);
 
         // 5. Text Colors
         if (tvAppTitle != null) tvAppTitle.setTextColor(t.textPrimary);
         if (tvAppSubtitle != null) tvAppSubtitle.setTextColor(t.textMuted);
         if (tvIpAddress != null) tvIpAddress.setTextColor(t.primary);
         if (tvPrinterModel != null) tvPrinterModel.setTextColor(t.textSecondary);
+        if (tvQueueStatus != null) tvQueueStatus.setTextColor(t.textMuted);
         if (tvWifiSsid != null) tvWifiSsid.setTextColor(t.textMuted);
         if (tvRootStatus != null) tvRootStatus.setTextColor(t.textMuted);
 
@@ -453,15 +484,32 @@ public class MainActivity extends Activity {
         }
     }
 
+    private final Runnable statusPollRunnable = new Runnable() {
+        @Override
+        public void run() {
+            refreshStatus();
+            mainHandler.postDelayed(this, 3000);
+        }
+    };
+
     @Override
     protected void onResume() {
         super.onResume();
         refreshStatus();
+        mainHandler.removeCallbacks(statusPollRunnable);
+        mainHandler.postDelayed(statusPollRunnable, 3000);
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        mainHandler.removeCallbacks(statusPollRunnable);
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        mainHandler.removeCallbacks(statusPollRunnable);
         if (connectivityManager != null && networkCallback != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             try {
                 connectivityManager.unregisterNetworkCallback(networkCallback);
@@ -478,6 +526,16 @@ public class MainActivity extends Activity {
             final boolean cupsRunning = checkCupsRunning();
             final String usbPrinter = checkUsbPrinter();
 
+            String spoolText = "Spooler: Queue Idle (0 active jobs)";
+            if (cupsRunning) {
+                String queueOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -o 2>/dev/null || true");
+                if (queueOut != null && !queueOut.trim().isEmpty()) {
+                    int jobCount = queueOut.trim().split("\n").length;
+                    spoolText = "Spooler: " + jobCount + (jobCount == 1 ? " job active" : " jobs active");
+                }
+            }
+            final String finalSpoolText = spoolText;
+
             mainHandler.post(() -> {
                 currentIp = lanIp;
                 isServerRunning = cupsRunning;
@@ -488,9 +546,13 @@ public class MainActivity extends Activity {
                 tvIpAddress.setText("IP: " + lanIp + ":631  |  Web: :8080");
                 tvWifiSsid.setText("Network: " + wifiSsid);
                 tvPrinterModel.setText("Printer: " + usbPrinter);
+                if (tvQueueStatus != null) {
+                    tvQueueStatus.setText(finalSpoolText);
+                }
 
                 if (tvGuideLinux != null) {
-                    tvGuideLinux.setText("Command: lp -h " + lanIp + ":631 -d <PRINTER> document.pdf");
+                    String queue = (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<")) ? currentPrinterQueue : "<PRINTER>";
+                    tvGuideLinux.setText("Command: lp -h " + lanIp + ":631 -d " + queue + " document.pdf");
                 }
 
                 updateStatusBadge(cupsRunning);
@@ -519,30 +581,68 @@ public class MainActivity extends Activity {
     }
 
     private void executeRootAction(String action) {
-        Toast.makeText(this, "Executing: " + action + "...", Toast.LENGTH_SHORT).show();
+        Log.d("Pinion", "executeRootAction requested: " + action);
+        mainHandler.post(() -> {
+            if ("START".equals(action)) {
+                tvStatusBadge.setText("STARTING...");
+                tvStatusBadge.setTextColor(0xFFF59E0B);
+            } else if ("STOP".equals(action)) {
+                tvStatusBadge.setText("STOPPING...");
+                tvStatusBadge.setTextColor(0xFFF59E0B);
+            } else if ("RESTART".equals(action)) {
+                tvStatusBadge.setText("RESTARTING...");
+                tvStatusBadge.setTextColor(0xFFF59E0B);
+            }
+        });
+
         executor.execute(() -> {
+            Log.d("Pinion", "executeRootAction worker starting for: " + action);
             switch (action) {
                 case "START":
                     ensureStartupScriptExists();
                     runRootCommand("/data/local/bin/start-printserver.sh");
                     break;
                 case "STOP":
-                    runRootCommand("killall cupsd avahi-daemon python3 2>/dev/null || true");
+                    runRootCommand("killall cupsd avahi-daemon python3 2>/dev/null; pkill -9 cupsd 2>/dev/null; pkill -9 -f printserver-webui.py 2>/dev/null; true");
                     break;
                 case "RESTART":
+                    runRootCommand("killall cupsd avahi-daemon python3 2>/dev/null; pkill -9 cupsd 2>/dev/null; pkill -9 -f printserver-webui.py 2>/dev/null; true");
+                    try { Thread.sleep(400); } catch (InterruptedException ignored) {}
                     ensureStartupScriptExists();
-                    runRootCommand("killall cupsd avahi-daemon python3 2>/dev/null || true; sleep 1; /data/local/bin/start-printserver.sh");
+                    runRootCommand("/data/local/bin/start-printserver.sh");
                     break;
                 case "TEST_PAGE":
                     String lpTarget = (currentPrinterQueue == null || currentPrinterQueue.startsWith("<")) ? "" : (" -d " + currentPrinterQueue);
                     runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /bin/bash -c "
                             + "\"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; "
-                            + "echo 'Pinion Test Page - Universal Wireless Print Engine - killindodo' | lp" + lpTarget + "\"");
+                            + "echo 'Pinion Test Page' | lp" + lpTarget + "\" 2>/dev/null || true");
+                    break;
+                case "CLEAR_QUEUE":
+                    runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/cancel -a 2>/dev/null; true");
+                    mainHandler.post(() -> Toast.makeText(MainActivity.this, "Print queue cleared", Toast.LENGTH_SHORT).show());
                     break;
             }
 
             try {
-                Thread.sleep(1500);
+                if ("START".equals(action) || "RESTART".equals(action)) {
+                    for (int i = 0; i < 20; i++) {
+                        Thread.sleep(250);
+                        if (checkCupsRunning()) {
+                            Log.d("Pinion", "Action " + action + " success: server is RUNNING (attempt " + (i + 1) + ")");
+                            break;
+                        }
+                    }
+                } else if ("STOP".equals(action)) {
+                    for (int i = 0; i < 15; i++) {
+                        Thread.sleep(200);
+                        if (!checkCupsRunning()) {
+                            Log.d("Pinion", "Action " + action + " success: server is STOPPED (attempt " + (i + 1) + ")");
+                            break;
+                        }
+                    }
+                } else {
+                    Thread.sleep(800);
+                }
             } catch (InterruptedException ignored) {}
 
             mainHandler.post(() -> refreshStatus());
@@ -550,49 +650,72 @@ public class MainActivity extends Activity {
     }
 
     private void ensureStartupScriptExists() {
-        runRootCommand("mkdir -p /data/local/bin; "
-                + "cat << 'EOF' > /data/local/bin/start-printserver.sh\n"
-                + "#!/system/bin/sh\n"
-                + "ROOTFS=\"/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs\"\n"
-                + "echo \"printserver\" > /sys/power/wake_lock 2>/dev/null\n"
-                + "chmod -R 666 /dev/bus/usb 2>/dev/null\n"
-                + "chmod -R 666 /dev/usb 2>/dev/null\n"
-                + "mount -o remount,exec /data 2>/dev/null\n"
-                + "mountpoint -q $ROOTFS/proc || mount -t proc proc $ROOTFS/proc\n"
-                + "mountpoint -q $ROOTFS/sys  || mount -t sysfs sysfs $ROOTFS/sys\n"
-                + "mountpoint -q $ROOTFS/dev  || mount -o bind /dev $ROOTFS/dev\n"
-                + "mountpoint -q $ROOTFS/dev/pts || mount -t devpts devpts $ROOTFS/dev/pts\n"
-                + "echo \"nameserver 1.1.1.1\" > $ROOTFS/etc/resolv.conf\n"
-                + "echo \"nameserver 8.8.8.8\" >> $ROOTFS/etc/resolv.conf\n"
-                + "mkdir -p $ROOTFS/run/dbus $ROOTFS/run/cups $ROOTFS/tmp $ROOTFS/data/local/tmp\n"
-                + "chmod 1777 $ROOTFS/tmp $ROOTFS/data/local/tmp\n"
-                + "killall cupsd avahi-daemon dbus-daemon 2>/dev/null\n"
-                + "pkill -f printserver-webui.py 2>/dev/null\n"
-                + "rm -f $ROOTFS/run/dbus/pid $ROOTFS/run/cups/cups.sock $ROOTFS/run/dbus/system_bus_socket $ROOTFS/run/avahi-daemon/pid\n"
-                + "chroot $ROOTFS /bin/bash -c \"\n"
-                + "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
-                + "export TMPDIR=/tmp\n"
-                + "export HOME=/root\n"
-                + "/usr/bin/dbus-daemon --system >/dev/null 2>&1\n"
-                + "avahi-daemon -D >/dev/null 2>&1\n"
-                + "cupsd >/dev/null 2>&1\n"
-                + "\" </dev/null >/dev/null 2>&1\n"
-                + "nohup chroot $ROOTFS /bin/bash -c \"\n"
-                + "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
-                + "python3 /usr/local/bin/printserver-webui.py\n"
-                + "\" </dev/null >/data/local/tmp/webui.log 2>&1 &\n"
-                + "EOF\n"
-                + "chmod +x /data/local/bin/start-printserver.sh");
+        String test = runRootCommand("[ -x /data/local/bin/start-printserver.sh ] && echo OK");
+        if (test != null && test.contains("OK")) {
+            return;
+        }
+
+        try {
+            File scriptFile = new File(getCacheDir(), "start-printserver.sh");
+            try (FileOutputStream fos = new FileOutputStream(scriptFile)) {
+                String script = "#!/system/bin/sh\n"
+                        + "ROOTFS=\"/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs\"\n"
+                        + "echo \"printserver\" > /sys/power/wake_lock 2>/dev/null\n"
+                        + "chmod -R 666 /dev/bus/usb 2>/dev/null\n"
+                        + "chmod -R 666 /dev/usb 2>/dev/null\n"
+                        + "mount -o remount,exec /data 2>/dev/null\n"
+                        + "mountpoint -q $ROOTFS/proc || mount -t proc proc $ROOTFS/proc\n"
+                        + "mountpoint -q $ROOTFS/sys  || mount -t sysfs sysfs $ROOTFS/sys\n"
+                        + "mountpoint -q $ROOTFS/dev  || mount -o bind /dev $ROOTFS/dev\n"
+                        + "mountpoint -q $ROOTFS/dev/pts || mount -t devpts devpts $ROOTFS/dev/pts\n"
+                        + "echo \"nameserver 1.1.1.1\" > $ROOTFS/etc/resolv.conf\n"
+                        + "echo \"nameserver 8.8.8.8\" >> $ROOTFS/etc/resolv.conf\n"
+                        + "mkdir -p $ROOTFS/run/dbus $ROOTFS/run/cups $ROOTFS/tmp $ROOTFS/data/local/tmp\n"
+                        + "chmod 1777 $ROOTFS/tmp $ROOTFS/data/local/tmp\n"
+                        + "killall cupsd avahi-daemon dbus-daemon 2>/dev/null\n"
+                        + "pkill -f printserver-webui.py 2>/dev/null\n"
+                        + "rm -f $ROOTFS/run/dbus/pid $ROOTFS/run/cups/cups.sock $ROOTFS/run/dbus/system_bus_socket $ROOTFS/run/avahi-daemon/pid\n"
+                        + "chroot $ROOTFS /bin/bash -c \"\n"
+                        + "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
+                        + "export TMPDIR=/tmp\n"
+                        + "export HOME=/root\n"
+                        + "/usr/bin/dbus-daemon --system >/dev/null 2>&1\n"
+                        + "avahi-daemon -D >/dev/null 2>&1\n"
+                        + "cupsd >/dev/null 2>&1\n"
+                        + "\" </dev/null >/dev/null 2>&1\n"
+                        + "nohup chroot $ROOTFS /bin/bash -c \"\n"
+                        + "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
+                        + "python3 /usr/local/bin/printserver-webui.py\n"
+                        + "\" </dev/null >/data/local/tmp/webui.log 2>&1 &\n";
+                fos.write(script.getBytes(StandardCharsets.UTF_8));
+            }
+            runRootCommand("mkdir -p /data/local/bin && cp " + scriptFile.getAbsolutePath() + " /data/local/bin/start-printserver.sh && chmod 755 /data/local/bin/start-printserver.sh");
+        } catch (Exception ignored) {}
     }
 
+    private Boolean cachedRootAccess = null;
     private boolean checkRootAccess() {
+        if (cachedRootAccess != null) return cachedRootAccess;
         String result = runRootCommand("id");
-        return result != null && result.contains("uid=0");
+        cachedRootAccess = (result != null && result.contains("uid=0"));
+        return cachedRootAccess;
     }
 
     private boolean checkCupsRunning() {
+        if (checkPortOpen(631, 250) || checkPortOpen(8080, 250)) {
+            return true;
+        }
         String result = runRootCommand("pgrep cupsd || pidof cupsd || true");
         return result != null && !result.trim().isEmpty();
+    }
+
+    private boolean checkPortOpen(int port, int timeoutMs) {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress("127.0.0.1", port), timeoutMs);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private String checkUsbPrinter() {
@@ -617,14 +740,19 @@ public class MainActivity extends Activity {
             }
         }
 
+        boolean usbAttached = false;
         String result = runRootCommand("lsusb 2>/dev/null || dumpsys usb 2>/dev/null || true");
         if (result != null && !result.trim().isEmpty()) {
             String lower = result.toLowerCase();
             if (lower.contains("printer") || lower.contains("print") || (result.contains("Bus ") && result.split("\n").length > 1)) {
-                return "USB Printer Connected";
+                usbAttached = true;
             }
         }
-        return "No USB Printer Detected (Connect OTG Cable)";
+
+        if (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<") && !currentPrinterQueue.isEmpty()) {
+            return currentPrinterQueue + (usbAttached ? " (Connected)" : " (Configured)");
+        }
+        return usbAttached ? "USB Printer Connected" : "No USB Printer Detected (Connect OTG Cable)";
     }
 
     private String getLocalIpAddress() {
@@ -702,11 +830,14 @@ public class MainActivity extends Activity {
         StringBuilder output = new StringBuilder();
         Process process = null;
         try {
-            process = Runtime.getRuntime().exec("su");
-            try (DataOutputStream os = new DataOutputStream(process.getOutputStream())) {
-                os.writeBytes(command + "\n");
-                os.writeBytes("exit\n");
-                os.flush();
+            ProcessBuilder pb = new ProcessBuilder("su", "-mm", "-c", command);
+            pb.redirectErrorStream(true);
+            try {
+                process = pb.start();
+            } catch (Exception e) {
+                pb = new ProcessBuilder("su", "-c", command);
+                pb.redirectErrorStream(true);
+                process = pb.start();
             }
 
             try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
@@ -715,13 +846,28 @@ public class MainActivity extends Activity {
                     output.append(line).append("\n");
                 }
             }
-            process.waitFor();
-            return output.toString();
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                boolean finished = process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
+                if (!finished) {
+                    process.destroyForcibly();
+                    Log.w("Pinion", "Root command timed out: " + command);
+                    return null;
+                }
+            } else {
+                process.waitFor();
+            }
+            String res = output.toString();
+            Log.d("Pinion", "runRootCommand [" + command + "] -> " + (res.length() > 100 ? res.substring(0, 100).trim() + "..." : res.trim()));
+            return res;
         } catch (Exception e) {
+            Log.e("Pinion", "runRootCommand exception for: " + command, e);
             return null;
         } finally {
             if (process != null) {
-                process.destroy();
+                try {
+                    process.destroy();
+                } catch (Exception ignored) {}
             }
         }
     }
