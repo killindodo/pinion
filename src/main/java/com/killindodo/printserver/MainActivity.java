@@ -232,11 +232,11 @@ public class MainActivity extends Activity {
             startActivity(browserIntent);
         });
 
-        // Open Dodo PrintServer Web Dashboard Click (:8080)
+        // Open Pinion Web Dashboard Click (:8080)
         btnOpenWebUi.setOnClickListener(v -> {
             String webUrl = "http://" + currentIp + ":8080";
             ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
-            ClipData clip = ClipData.newPlainText("Dodo Web Dashboard URL", webUrl);
+            ClipData clip = ClipData.newPlainText("Pinion Web Dashboard URL", webUrl);
             if (clipboard != null) clipboard.setPrimaryClip(clip);
             Toast.makeText(MainActivity.this, "Opening Web UI & Copied: " + webUrl, Toast.LENGTH_SHORT).show();
 

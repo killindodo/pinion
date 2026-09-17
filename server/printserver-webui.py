@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Dodo PrintServer Web Dashboard
-Universal Wireless Print Server Web UI by killindodo
-Runs on port 8080, styled with Dodo-RF themes (Matrix, Cyberpunk, Monochrome, Light, Slate)
+Pinion Web Dashboard
+Universal Wireless Print Engine Web UI by killindodo
+Runs on port 8080, styled with custom tech themes (Matrix, Cyberpunk, Monochrome, Light, Slate)
 Supports real-time printer status, queue management, and browser drag-and-drop printing.
 """
 
@@ -487,8 +487,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
 </div>
 
 <div class="footer">
-  Made with 🦤 love by <a href="https://github.com/killindodo" target="_blank">killindodo</a> &bull;
-  <a href="http://" id="cupsAdminLink" target="_blank">Legacy CUPS Admin (:631)</a>
+  Made with 🪶 love by <a href="https://github.com/killindodo" target="_blank">killindodo</a> &bull;
+  <a href="https://github.com/killindodo" target="_blank">github.com/killindodo</a>
 </div>
 
 <div id="toast">Message</div>
@@ -797,7 +797,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         if self.path == "/api/testprint":
             try:
                 # Send test print via lp
-                cmd = "echo 'Dodo PrintServer Test Page\nUNIVERSAL WIRELESS PRINT SERVER BY KILLINDODO\nDate: $(date)\nCUPS Server: OK\nPrinter: HP LaserJet M1005 MFP\n\nMade with love by killindodo\nhttps://github.com/killindodo' | lp -d HP_LaserJet_M1005"
+                cmd = "echo 'Pinion Test Page\nUNIVERSAL WIRELESS PRINT ENGINE BY KILLINDODO\nDate: $(date)\nCUPS Server: OK\nPrinter: HP LaserJet M1005 MFP\n\nMade with love by killindodo\nhttps://github.com/killindodo' | lp -d HP_LaserJet_M1005"
                 subprocess.check_output(cmd, shell=True, env=ENV_PATH)
                 resp = {"success": True, "message": "Test print submitted to HP LaserJet M1005!"}
             except Exception as e:
@@ -896,7 +896,7 @@ class ReusableThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServe
 def run_server():
     server_address = ('0.0.0.0', PORT)
     httpd = ReusableThreadingServer(server_address, RequestHandler)
-    print(f"[Dodo PrintServer WebUI] Serving on http://0.0.0.0:{PORT}")
+    print(f"[Pinion WebUI] Serving on http://0.0.0.0:{PORT}")
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

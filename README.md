@@ -1,68 +1,87 @@
-# PrintServer Root 🖨️
+# Pinion ⚙️🪶
+### Universal Wireless Print Engine for Android
 
-A wireless network print server for Android that turns any rooted Android device into an AirPrint, Mopria, and IPP print server for USB printers (including host-based GDI printers like the HP LaserJet M1005 MFP).
+Turn any rooted Android device into a standalone network print server with native support for **Apple AirPrint**, **Android Mopria / Default Print Service**, **Windows IPP**, and **Linux CUPS**. Engineered for USB printers, including host-based GDI devices like the HP LaserJet M1005 MFP.
 
-Made with ❤️ by [killindodo](https://www.github.com/killindodo).
-
----
-
-## ✨ Features
-
-- **Universal Driver Support:** Powered by CUPS, Foomatic `foo2xqx`/`foo2zjs`, and HPLIP.
-- **Zero-Config Wireless Printing:** Built-in Avahi mDNS / AirPrint / Mopria daemon.
-- **Root Controlled GUI:** One-tap Start, Stop, Restart, and Test Print directly from your phone.
-- **Live Device Monitoring:** Shows real-time server status, Wi-Fi IP address, and detected USB printer.
-- **Web Administration Dashboard:** Quick access to the full CUPS web manager on port 631.
-- **Ultra Lightweight:** Clean native Android app (< 40 KB) with no unnecessary background bloat.
+Developed by [killindodo](https://github.com/killindodo).
 
 ---
 
-## 💻 Client Usage Guide
+## Overview
 
-### 🪟 Windows 10 / 11
-1. Open **Settings > Bluetooth & devices > Printers & scanners**.
-2. Click **Add printer or scanner**.
-3. Windows will automatically find the printer via mDNS (`HP LaserJet M1005 @ linux.local`).
-4. Alternatively, click *The printer that I want isn't listed* and select **Select a shared printer by name**:
+Pinion bridges USB OTG printers directly to your local wireless network using an embedded CUPS and Avahi stack running within a contained Linux userspace on Android. It provides a clean, native Android control app and a responsive web dashboard for direct browser printing.
+
+### Key Capabilities
+- **Universal Protocol Support**: Zero-configuration discovery via Avahi mDNS (`_ipp._tcp`, `_printer._tcp`, `_pdl-datastream._tcp`).
+- **GDI & Host-Based Engine**: Native driver pipeline with Foomatic `foo2xqx`/`foo2zjs` and HPLIP.
+- **Native Android Controller**: Fast, lightweight (<160 KB) native app with live status, interface IP detection, service supervisor, and 5 cyber/terminal themes.
+- **Web Dashboard (:8080)**: Direct browser drag-and-drop document & photo printing via `lp` without client-side driver installations.
+- **Tablet & Phone Optimized**: Dynamic responsive layout supporting both phone portrait and tablet multi-column views.
+
+---
+
+## Client Connection Guide
+
+No passwords or client drivers required. Ensure your client device is connected to the same Wi-Fi network.
+
+### Windows 10 / 11
+1. Navigate to **Settings > Bluetooth & devices > Printers & scanners**.
+2. Click **Add device**. Windows will discover the printer automatically via mDNS.
+3. If connecting manually, select **The printer that I want isn't listed** > **Select a shared printer by name**:
+   ```text
+   http://<DEVICE_IP>:631/printers/HP_LaserJet_M1005
    ```
-   http://<PHONE_IP>:631/printers/HP_LaserJet_M1005
-   ```
+4. Choose the generic MS Publisher Imagesetter or HP LaserJet driver if prompted.
 
-### 📱 Android
-1. Open any photo, document, or PDF.
-2. Tap **Share** or **Print**.
-3. Select **HP LaserJet M1005** directly from the discovered printer list (via Android Default Print Service or Mopria).
-
-### 🍎 iOS / macOS (AirPrint)
-1. Ensure your iPhone, iPad, or Mac is connected to the same Wi-Fi network.
+### Android
+1. Open any document, photo, or web page.
 2. Tap **Share > Print**.
-3. The printer appears natively under **AirPrint** with zero drivers or configuration needed.
+3. The printer appears automatically under **Default Print Service** or **Mopria Print Service**.
 
-### 🐧 Linux
-Print directly from the command line:
+### iOS / macOS (AirPrint)
+1. Tap **Share > Print** on any iPhone, iPad, or Mac.
+2. The printer appears immediately via Bonjour / AirPrint.
+
+### Linux
+Submit jobs directly through the command line or desktop printer settings:
 ```bash
-lp -h <PHONE_IP>:631 -d HP_LaserJet_M1005 document.pdf
+lp -h <DEVICE_IP>:631 -d HP_LaserJet_M1005 document.pdf
 ```
-Or add the IPP printer via your desktop's system printer settings.
+
+### Browser Direct Print (:8080)
+Open `http://<DEVICE_IP>:8080` in any web browser on the network. Drag and drop any PDF or image to print instantly.
 
 ---
 
-## 🛠️ Building From Source
+## Architecture & Server Daemons
 
-Prerequisites:
-- Android SDK Build-Tools (30+)
-- JDK 17+ / OpenJDK
+Pinion coordinates the following services under root:
+- **CUPS (`cupsd`)**: Core print scheduler and IPP 2.0 implementation.
+- **Avahi (`avahi-daemon`)**: Multicast DNS responder announcing AirPrint service records.
+- **Web UI (`server/printserver-webui.py`)**: Lightweight Python HTTP server managing browser uploads and CUPS queue status.
+- **Supervisor Script (`start-printserver.sh`)**: Automates USB permissions, devnode links, and daemon lifecycles.
 
-Run the automated build script:
+---
+
+## Build Instructions
+
+### Requirements
+- Android SDK Build-Tools (v30+)
+- JDK 17+
+- Bash & Zip utilities
+
+### Build APK
 ```bash
 chmod +x build.sh
 ./build.sh
 ```
-The compiled, aligned, and signed APK will be output to:
-`build/out/PrintServer-Root.apk`
+The aligned and signed production APK will be generated at:
+```text
+build/out/PrintServer-Root.apk
+```
 
 ---
 
-## 📜 Credits & License
-Created and maintained by [killindodo](https://www.github.com/killindodo).
-Licensed under the MIT License.
+## License & Author
+Developed and maintained by [killindodo](https://github.com/killindodo).  
+Released under the MIT License.
