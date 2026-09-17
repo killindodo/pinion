@@ -213,10 +213,10 @@ class TestCupsStatusParsing(unittest.TestCase):
 
 
 class TestHTMLIntegrity(unittest.TestCase):
-    """Bug #10: Missing DOM element references in JavaScript."""
+    """Bug #10: DOM element references in JavaScript."""
 
-    def test_cups_admin_link_element_missing(self):
-        """Bug #10: JavaScript references 'cupsAdminLink' but no such element exists."""
+    def test_cups_admin_link_element_exists(self):
+        """Bug #10: JavaScript references 'cupsAdminLink' and element exists."""
         # Read the HTML from the Python file
         webui_path = os.path.join(SERVER_DIR, "printserver-webui.py")
         with open(webui_path, 'r') as f:
@@ -232,33 +232,25 @@ class TestHTMLIntegrity(unittest.TestCase):
         self.assertIn('cupsAdminLink', html,
                        "JS code references cupsAdminLink")
 
-        # Check that no HTML element has id="cupsAdminLink"
+        # Check that HTML element has id="cupsAdminLink"
         has_element = 'id="cupsAdminLink"' in html or "id='cupsAdminLink'" in html
-        self.assertFalse(has_element,
-                         "BUG CONFIRMED: 'cupsAdminLink' is referenced in JS but "
-                         "no HTML element with that id exists — causes TypeError every 4s")
+        self.assertTrue(has_element,
+                        "Element 'cupsAdminLink' exists in HTML")
 
 
 class TestToastBehavior(unittest.TestCase):
     """Bug #11: Toast notification timing issues."""
 
     def test_rapid_toast_calls_should_not_overlap(self):
-        """Bug #11: Rapid showToast() calls cause premature toast dismissal."""
-        # The current implementation:
-        #   t.className = "show";
-        #   setTimeout(() => { t.className = t.className.replace("show", ""); }, 2800);
-        #
-        # If called twice rapidly:
-        #   Call 1: sets "show", schedules removal at T+2800ms
-        #   Call 2: sets "show", schedules removal at T+100+2800ms
-        #   At T+2800ms: Call 1's timeout fires, removes "show" from Call 2's toast
-        #
-        # Fix: store timeout ID and clearTimeout() before setting new one
-        self.assertTrue(True, "This is a client-side JS bug verified by manual testing")
+        """Bug #11: Rapid showToast() calls do not overlap due to clearTimeout."""
+        webui_path = os.path.join(SERVER_DIR, "printserver-webui.py")
+        with open(webui_path, 'r') as f:
+            content = f.read()
+        self.assertIn('clearTimeout(toastTimer)', content, "showToast clears pending timeout")
 
 
 class TestFileTypeValidation(unittest.TestCase):
-    """Bug #19: Server accepts any file type despite HTML restrictions."""
+    """Bug #19: Server validates file type."""
 
     ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.png', '.jpg', '.jpeg'}
 
@@ -270,18 +262,18 @@ class TestFileTypeValidation(unittest.TestCase):
         self.assertIn('accept=".pdf,.txt,.png,.jpg,.jpeg"', content)
 
     def test_server_should_validate_file_extension(self):
-        """Server side should also validate — currently it does NOT."""
-        dangerous_extensions = ['.exe', '.sh', '.py', '.bat', '.ps1']
-        for ext in dangerous_extensions:
-            self.assertNotIn(ext, self.ALLOWED_EXTENSIONS,
-                             f"Extension {ext} should be rejected by server-side validation")
+        """Server side validates file extensions."""
+        webui_path = os.path.join(SERVER_DIR, "printserver-webui.py")
+        with open(webui_path, 'r') as f:
+            content = f.read()
+        self.assertIn('ALLOWED_EXTENSIONS', content, "Server defines ALLOWED_EXTENSIONS")
 
 
 class TestBuildScript(unittest.TestCase):
-    """Bug #18: Hardcoded paths in build.sh."""
+    """Bug #18: Portability in build.sh."""
 
     def test_hardcoded_paths(self):
-        """build.sh hardcodes /home/killindodo paths."""
+        """build.sh does not contain hardcoded user paths."""
         build_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "build.sh"
@@ -290,8 +282,8 @@ class TestBuildScript(unittest.TestCase):
             content = f.read()
 
         # Check for hardcoded home directory
-        self.assertIn('/home/killindodo', content,
-                      "build.sh contains hardcoded user path (expected — documenting the bug)")
+        self.assertNotIn('/home/killindodo', content,
+                         "build.sh does not contain hardcoded user path")
 
     def test_sdk_dir_should_use_env_variable(self):
         """SDK_DIR should use ANDROID_HOME or ANDROID_SDK_ROOT env variable."""
@@ -302,19 +294,18 @@ class TestBuildScript(unittest.TestCase):
         with open(build_path, 'r') as f:
             content = f.read()
 
-        # Currently hardcoded — should use environment variable
         uses_env = ('$ANDROID_HOME' in content or
                     '$ANDROID_SDK_ROOT' in content or
                     '${ANDROID_HOME}' in content)
-        self.assertFalse(uses_env,
-                         "BUG CONFIRMED: build.sh does NOT use ANDROID_HOME env variable")
+        self.assertTrue(uses_env,
+                        "build.sh uses ANDROID_HOME env variable")
 
 
 class TestManifest(unittest.TestCase):
-    """Bug #20: Unused permissions in AndroidManifest.xml."""
+    """Bug #20: Manifest permissions."""
 
     def test_boot_completed_permission_without_receiver(self):
-        """RECEIVE_BOOT_COMPLETED permission declared but no receiver exists."""
+        """Unused RECEIVE_BOOT_COMPLETED permission was removed."""
         manifest_path = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
             "src", "main", "AndroidManifest.xml"
@@ -323,11 +314,7 @@ class TestManifest(unittest.TestCase):
             content = f.read()
 
         has_permission = 'RECEIVE_BOOT_COMPLETED' in content
-        has_receiver = 'android.intent.action.BOOT_COMPLETED' in content
-        self.assertTrue(has_permission, "Permission is declared")
-        self.assertFalse(has_receiver,
-                         "BUG CONFIRMED: BOOT_COMPLETED permission exists but "
-                         "no BroadcastReceiver handles it — dead permission")
+        self.assertFalse(has_permission, "Dead RECEIVE_BOOT_COMPLETED permission was removed")
 
 
 class TestNetworkAuthentication(unittest.TestCase):

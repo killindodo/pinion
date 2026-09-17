@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-PROJECT_DIR="/home/killindodo/Projects/PrintServer-App"
-SDK_DIR="/home/killindodo/Android/Sdk"
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve SDK from $ANDROID_HOME or $ANDROID_SDK_ROOT
+SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-"$HOME/Android/Sdk"}}"
 BUILD_TOOLS="$SDK_DIR/build-tools/36.0.0"
 PLATFORM="$SDK_DIR/platforms/android-35/android.jar"
 
@@ -49,19 +50,20 @@ $ZIPALIGN -v -p 4 "$PROJECT_DIR/build/app-unaligned.apk" "$PROJECT_DIR/build/out
 
 echo "=== 8. Checking / Generating signing key ==="
 KEYSTORE="$PROJECT_DIR/keystore/debug.keystore"
+KS_PASS="${KEYSTORE_PASS:-android}"
 if [ ! -f "$KEYSTORE" ]; then
     keytool -genkeypair -v \
         -keystore "$KEYSTORE" \
-        -storepass android -keypass android \
+        -storepass "$KS_PASS" -keypass "$KS_PASS" \
         -alias androiddebugkey \
         -keyalg RSA -keysize 2048 -validity 10000 \
-        -dname "CN=Killindodo, OU=Dev, O=Killindodo, L=India, ST=State, C=IN"
+        -dname "CN=Android Debug, O=Android, C=US"
 fi
 
 echo "=== 9. Signing APK with apksigner ==="
 $APKSIGNER sign --ks "$KEYSTORE" \
-    --ks-pass pass:android \
-    --key-pass pass:android \
+    --ks-pass "pass:$KS_PASS" \
+    --key-pass "pass:$KS_PASS" \
     --ks-key-alias androiddebugkey \
     "$PROJECT_DIR/build/out/PrintServer-Root.apk"
 

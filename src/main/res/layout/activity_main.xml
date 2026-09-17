@@ -457,7 +457,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="10dp"
                 android:letterSpacing="0.08"
-                android:text="HOW TO CONNECT (NO PASSWORD REQUIRED)"
+                android:text="HOW TO CONNECT (ZERO AUTH REQUIRED)"
                 android:textColor="@color/text_muted"
                 android:textSize="10sp"
                 android:textStyle="bold" />

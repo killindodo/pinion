@@ -7,13 +7,15 @@ Supports real-time printer status, queue management, and browser drag-and-drop p
 """
 
 import http.server
-import socketserver
 import json
-import subprocess
 import os
+import re
+import socket
+import socketserver
+import subprocess
 import sys
 import time
-import socket
+import uuid
 from email.parser import BytesFeedParser
 from email.policy import default
 
@@ -363,6 +365,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
     </div>
   </div>
   <div class="header-right">
+    <a id="cupsAdminLink" href="http://127.0.0.1:631" target="_blank" class="badge" style="text-decoration:none; color:var(--cyan); border-color:var(--cyan);" title="Open CUPS Admin Console (:631)">⚙️ CUPS</a>
     <select id="themeSelect" onchange="applyTheme(this.value)">
       <option value="default">Matrix Green (Dark)</option>
       <option value="theme-cyberpunk">Cyberpunk Neon</option>
@@ -515,11 +518,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
   const savedTheme = localStorage.getItem("dodo_print_theme") || "default";
   applyTheme(savedTheme);
 
+  let toastTimer = null;
   function showToast(msg) {
     const t = document.getElementById("toast");
+    if (!t) return;
     t.innerText = msg;
     t.className = "show";
-    setTimeout(() => { t.className = t.className.replace("show", ""); }, 2800);
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { t.className = t.className.replace("show", "").trim(); }, 2800);
   }
 
   function copyIpp() {
@@ -556,7 +562,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
         const qName = data.queue || "<PRINTER_NAME>";
         currentIppUrl = "http://" + data.ip + ":631/printers/" + qName;
         document.getElementById("valIpp").innerText = currentIppUrl;
-        document.getElementById("cupsAdminLink").href = "http://" + data.ip + ":631";
+        const cupsLink = document.getElementById("cupsAdminLink");
+        if (cupsLink && data.ip) {
+          cupsLink.href = "http://" + data.ip + ":631";
+        }
 
         renderJobs(data.jobs || []);
       })
@@ -692,21 +701,24 @@ HTML_PAGE = r"""<!DOCTYPE html>
 """
 
 def get_lan_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.settimeout(0.5)
         s.connect(('1.1.1.1', 80))
         ip = s.getsockname()[0]
-        s.close()
         return ip
     except Exception:
         return "127.0.0.1"
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
 
 def get_wifi_ssid():
     # Check Android wifi status via dumpsys/cmd if accessible
     try:
         out = subprocess.check_output("cmd wifi status 2>/dev/null || dumpsys wifi 2>/dev/null || true", shell=True, text=True)
-        import re
         m = re.search(r'connected to "([^"]+)"', out)
         if m:
             return m.group(1)
@@ -721,13 +733,17 @@ ENV_PATH = {"PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bi
 
 def get_cups_status():
     running = False
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(0.3)
         running = (s.connect_ex(('127.0.0.1', 631)) == 0)
-        s.close()
     except Exception:
         running = False
+    finally:
+        try:
+            s.close()
+        except Exception:
+            pass
 
     queue_name = "<PRINTER_NAME>"
     printer_name = "USB Printer (Connected)"
@@ -779,10 +795,20 @@ def get_cups_status():
         "wifi": get_wifi_ssid()
     }
 
+ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.png', '.jpg', '.jpeg', '.ps', '.prn'}
+
 class RequestHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         # Silence routine request logging
         pass
+
+    def send_json(self, data, status=200):
+        resp = json.dumps(data).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(resp)))
+        self.end_headers()
+        self.wfile.write(resp)
 
     def do_HEAD(self):
         if self.path == "/" or self.path.startswith("/index"):
@@ -792,8 +818,10 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
         elif self.path == "/api/status":
+            resp = json.dumps(get_cups_status()).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(resp)))
             self.end_headers()
         else:
             self.send_response(404)
@@ -808,13 +836,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
         elif self.path == "/api/status":
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            data = get_cups_status()
-            resp = json.dumps(data).encode("utf-8")
-            self.send_header("Content-Length", str(len(resp)))
-            self.end_headers()
-            self.wfile.write(resp)
+            self.send_json(get_cups_status())
         else:
             self.send_response(404)
             self.end_headers()
@@ -826,55 +848,68 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
 
         if self.path == "/api/testprint":
             try:
-                # Send test print via lp
-                cmd = "echo 'Pinion Test Page\nUNIVERSAL WIRELESS PRINT ENGINE BY KILLINDODO\nDate: $(date)\nCUPS Server: OK\n\nMade with love by killindodo\nhttps://github.com/killindodo' | lp"
-                subprocess.check_output(cmd, shell=True, env=ENV_PATH)
-                resp = {"success": True, "message": "Test print submitted to default printer!"}
+                test_page = (
+                    "Pinion Test Page\n"
+                    "UNIVERSAL WIRELESS PRINT ENGINE BY KILLINDODO\n"
+                    f"Date: {time.ctime()}\n"
+                    "CUPS Server: OK\n\n"
+                    "Made with love by killindodo\n"
+                    "https://github.com/killindodo\n"
+                ).encode("utf-8")
+                p = subprocess.Popen(["lp"], stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=ENV_PATH)
+                stdout, stderr = p.communicate(input=test_page, timeout=10)
+                if p.returncode == 0:
+                    resp = {"success": True, "message": "Test print submitted to default printer!"}
+                else:
+                    err_msg = stderr.decode("utf-8", errors="replace").strip() or "lp command failed"
+                    resp = {"success": False, "error": err_msg}
             except Exception as e:
                 resp = {"success": False, "error": str(e)}
 
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            self.send_json(resp)
             return
 
         if self.path == "/api/restart":
             try:
-                subprocess.Popen("killall cupsd avahi-daemon 2>/dev/null; sleep 1; avahi-daemon -D 2>/dev/null; cupsd", shell=True, env=ENV_PATH)
+                try:
+                    subprocess.run(["killall", "cupsd", "avahi-daemon"], env=ENV_PATH, timeout=2, capture_output=True)
+                except Exception:
+                    pass
+                time.sleep(0.5)
+                subprocess.Popen(["avahi-daemon", "-D"], env=ENV_PATH)
+                subprocess.Popen(["cupsd"], env=ENV_PATH)
                 resp = {"success": True, "message": "Print daemons restarting..."}
             except Exception as e:
                 resp = {"success": False, "error": str(e)}
 
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            self.send_json(resp)
             return
 
         if self.path == "/api/cancel":
             try:
                 content_len = int(self.headers.get("Content-Length", 0))
-                body = self.rfile.read(content_len).decode("utf-8")
+                body = self.rfile.read(content_len).decode("utf-8") if content_len > 0 else "{}"
                 payload = json.loads(body) if body else {}
                 if payload.get("all"):
-                    subprocess.call("cancel -a 2>/dev/null || true", shell=True, env=ENV_PATH)
+                    subprocess.call(["cancel", "-a"], env=ENV_PATH)
                     resp = {"success": True, "message": "All print jobs cancelled"}
                 elif payload.get("jobId"):
-                    subprocess.call(f"cancel {payload['jobId']} 2>/dev/null || true", shell=True, env=ENV_PATH)
-                    resp = {"success": True, "message": f"Cancelled job {payload['jobId']}"}
+                    job_id = str(payload["jobId"])
+                    if re.match(r'^[a-zA-Z0-9_-]+$', job_id):
+                        subprocess.call(["cancel", job_id], env=ENV_PATH)
+                        resp = {"success": True, "message": f"Cancelled job {job_id}"}
+                    else:
+                        resp = {"success": False, "error": "Invalid job ID format"}
                 else:
                     resp = {"success": False, "error": "Missing jobId or all"}
             except Exception as e:
                 resp = {"success": False, "error": str(e)}
 
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            self.send_json(resp)
             return
 
         if self.path == "/api/print":
+            saved_path = None
             try:
                 content_len = int(self.headers.get("Content-Length", 0))
                 ctype = self.headers.get("Content-Type", "")
@@ -886,34 +921,41 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                     parser.feed(header_bytes + raw_data)
                     msg = parser.close()
 
-                    saved_path = None
                     file_name = "document.pdf"
                     for part in msg.iter_parts():
                         fn = part.get_filename()
                         if fn:
                             file_name = fn
                             payload = part.get_payload(decode=True)
-                            ext = os.path.splitext(file_name)[1] or ".bin"
-                            saved_path = f"/tmp/webprint_{int(time.time())}{ext}"
+                            ext = os.path.splitext(file_name)[1].lower() or ".bin"
+                            if ext not in ALLOWED_EXTENSIONS:
+                                resp = {"success": False, "error": f"File extension '{ext}' not allowed"}
+                                self.send_json(resp)
+                                return
+
+                            saved_path = f"/tmp/webprint_{time.time_ns()}_{uuid.uuid4().hex[:8]}{ext}"
                             with open(saved_path, "wb") as f:
                                 f.write(payload)
                             break
 
                     if saved_path and os.path.exists(saved_path):
-                        cmd = f"lp -t '{file_name}' '{saved_path}'"
-                        out = subprocess.check_output(cmd, shell=True, text=True, env=ENV_PATH).strip()
-                        resp = {"success": True, "message": f"Printed '{file_name}' ({out})"}
+                        safe_title = re.sub(r'[^a-zA-Z0-9_.-]', '_', os.path.basename(file_name))
+                        out = subprocess.check_output(["lp", "-t", safe_title, saved_path], text=True, env=ENV_PATH).strip()
+                        resp = {"success": True, "message": f"Printed '{safe_title}' ({out})"}
                     else:
                         resp = {"success": False, "error": "No file content detected in upload"}
                 else:
                     resp = {"success": False, "error": "Expected multipart/form-data"}
             except Exception as e:
                 resp = {"success": False, "error": str(e)}
+            finally:
+                if saved_path and os.path.exists(saved_path):
+                    try:
+                        os.unlink(saved_path)
+                    except Exception:
+                        pass
 
-            self.send_response(200)
-            self.send_header("Content-Type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(resp).encode("utf-8"))
+            self.send_json(resp)
             return
 
         self.send_response(404)

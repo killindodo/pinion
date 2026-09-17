@@ -140,6 +140,20 @@ public class MainActivity extends Activity {
     private String currentPrinterQueue = "<PRINTER_NAME>";
     private boolean isServerRunning = false;
 
+    private long lastActionTime = 0;
+    private static final long DEBOUNCE_DELAY_MS = 1200;
+    private Toast currentToast = null;
+
+    private void showToast(String message) {
+        mainHandler.post(() -> {
+            if (currentToast != null) {
+                currentToast.cancel();
+            }
+            currentToast = Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT);
+            currentToast.show();
+        });
+    }
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -251,7 +265,7 @@ public class MainActivity extends Activity {
             ClipData clip = ClipData.newPlainText("Pinion Web Dashboard URL", networkUrl);
             if (clipboard != null) clipboard.setPrimaryClip(clip);
 
-            Toast.makeText(MainActivity.this, "Connecting to Web UI...", Toast.LENGTH_SHORT).show();
+            showToast("Connecting to Web UI...");
             executor.execute(() -> {
                 if (!checkPortOpen(8080, 400)) {
                     ensureStartupScriptExists();
@@ -266,13 +280,13 @@ public class MainActivity extends Activity {
 
                 mainHandler.post(() -> {
                     refreshStatus();
-                    Toast.makeText(MainActivity.this, "Web UI Ready • Copied: " + networkUrl, Toast.LENGTH_SHORT).show();
+                    showToast("Web UI Ready • Copied: " + networkUrl);
                     Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(localUrl));
                     browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     try {
                         startActivity(browserIntent);
                     } catch (Exception e) {
-                        Toast.makeText(MainActivity.this, "No browser installed to open Web UI", Toast.LENGTH_SHORT).show();
+                        showToast("No browser installed to open Web UI");
                     }
                 });
             });
@@ -285,7 +299,7 @@ public class MainActivity extends Activity {
             ClipData clip = ClipData.newPlainText("Printer URL", printerUrl);
             if (clipboard != null) {
                 clipboard.setPrimaryClip(clip);
-                Toast.makeText(MainActivity.this, "Copied: " + printerUrl, Toast.LENGTH_SHORT).show();
+                showToast("Copied: " + printerUrl);
             }
         });
 
@@ -300,13 +314,13 @@ public class MainActivity extends Activity {
         if (btnOpenCups != null) {
             btnOpenCups.setOnClickListener(v -> {
                 String cupsUrl = "http://127.0.0.1:631";
-                Toast.makeText(MainActivity.this, "Opening CUPS Admin (:631)", Toast.LENGTH_SHORT).show();
+                showToast("Opening CUPS Admin (:631)");
                 Intent browserIntent = new Intent(Intent.ACTION_VIEW, Uri.parse(cupsUrl));
                 browserIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 try {
                     startActivity(browserIntent);
                 } catch (Exception e) {
-                    Toast.makeText(MainActivity.this, "No browser installed", Toast.LENGTH_SHORT).show();
+                    showToast("No browser installed");
                 }
             });
         }
@@ -338,7 +352,7 @@ public class MainActivity extends Activity {
                     .apply();
             applyTheme(currentTheme);
             dialog.dismiss();
-            Toast.makeText(MainActivity.this, "Theme: " + currentTheme.name, Toast.LENGTH_SHORT).show();
+            showToast("Theme: " + currentTheme.name);
         });
         builder.setNegativeButton("Close", null);
         builder.show();
@@ -515,7 +529,10 @@ public class MainActivity extends Activity {
                 connectivityManager.unregisterNetworkCallback(networkCallback);
             } catch (Exception ignored) {}
         }
-        executor.shutdown();
+        executor.shutdownNow();
+        try {
+            executor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {}
     }
 
     private void refreshStatus() {
@@ -581,6 +598,13 @@ public class MainActivity extends Activity {
     }
 
     private void executeRootAction(String action) {
+        long now = System.currentTimeMillis();
+        if (now - lastActionTime < DEBOUNCE_DELAY_MS) {
+            Log.d("Pinion", "Action debounced: " + action);
+            return;
+        }
+        lastActionTime = now;
+
         Log.d("Pinion", "executeRootAction requested: " + action);
         mainHandler.post(() -> {
             if ("START".equals(action)) {
@@ -612,6 +636,12 @@ public class MainActivity extends Activity {
                     runRootCommand("/data/local/bin/start-printserver.sh");
                     break;
                 case "TEST_PAGE":
+                    if (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<")) {
+                        if (!currentPrinterQueue.matches("^[a-zA-Z0-9_-]+$")) {
+                            showToast("Invalid printer queue name");
+                            break;
+                        }
+                    }
                     String lpTarget = (currentPrinterQueue == null || currentPrinterQueue.startsWith("<")) ? "" : (" -d " + currentPrinterQueue);
                     runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /bin/bash -c "
                             + "\"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; "
@@ -619,7 +649,7 @@ public class MainActivity extends Activity {
                     break;
                 case "CLEAR_QUEUE":
                     runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/cancel -a 2>/dev/null; true");
-                    mainHandler.post(() -> Toast.makeText(MainActivity.this, "Print queue cleared", Toast.LENGTH_SHORT).show());
+                    showToast("Print queue cleared");
                     break;
             }
 
@@ -702,11 +732,11 @@ public class MainActivity extends Activity {
     }
 
     private boolean checkCupsRunning() {
-        if (checkPortOpen(631, 250) || checkPortOpen(8080, 250)) {
+        if (checkPortOpen(631, 250)) {
             return true;
         }
-        String result = runRootCommand("pgrep cupsd || pidof cupsd || true");
-        return result != null && !result.trim().isEmpty();
+        String result = runRootCommand("pgrep -x cupsd 2>/dev/null");
+        return result != null && result.trim().matches("\\d+");
     }
 
     private boolean checkPortOpen(int port, int timeoutMs) {
@@ -725,7 +755,9 @@ public class MainActivity extends Activity {
             String[] parts = queueOut.split("system default destination:");
             if (parts.length > 1) {
                 String detected = parts[1].trim();
-                if (!detected.isEmpty()) currentPrinterQueue = detected;
+                if (!detected.isEmpty() && detected.matches("^[a-zA-Z0-9_-]+$")) {
+                    currentPrinterQueue = detected;
+                }
             }
         } else {
             String pOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -p 2>/dev/null || true");
@@ -733,19 +765,27 @@ public class MainActivity extends Activity {
                 try {
                     String firstLine = pOut.split("\n")[0];
                     String[] pParts = firstLine.split(" ");
-                    if (pParts.length > 1 && !pParts[1].trim().isEmpty()) {
-                        currentPrinterQueue = pParts[1].trim();
+                    if (pParts.length > 1) {
+                        String detected = pParts[1].trim();
+                        if (!detected.isEmpty() && detected.matches("^[a-zA-Z0-9_-]+$")) {
+                            currentPrinterQueue = detected;
+                        }
                     }
                 } catch (Exception ignored) {}
             }
         }
 
         boolean usbAttached = false;
-        String result = runRootCommand("lsusb 2>/dev/null || dumpsys usb 2>/dev/null || true");
-        if (result != null && !result.trim().isEmpty()) {
-            String lower = result.toLowerCase();
-            if (lower.contains("printer") || lower.contains("print") || (result.contains("Bus ") && result.split("\n").length > 1)) {
-                usbAttached = true;
+        String devLp = runRootCommand("ls /dev/usb/lp* 2>/dev/null");
+        if (devLp != null && devLp.contains("/dev/usb/lp")) {
+            usbAttached = true;
+        } else {
+            String result = runRootCommand("lsusb 2>/dev/null || dumpsys usb 2>/dev/null || true");
+            if (result != null && !result.trim().isEmpty()) {
+                String lower = result.toLowerCase();
+                if (lower.contains("printer") || lower.contains("print") || lower.contains("class=07") || lower.contains("binterfaceclass 7")) {
+                    usbAttached = true;
+                }
             }
         }
 
@@ -803,10 +843,13 @@ public class MainActivity extends Activity {
             if (m2.find()) {
                 return "Wi-Fi: " + m2.group(1);
             }
-            java.util.regex.Pattern p3 = java.util.regex.Pattern.compile("SSID:\\s*([a-zA-Z0-9_-]+)");
+            java.util.regex.Pattern p3 = java.util.regex.Pattern.compile("SSID:\\s*(.+?)\\s*$", java.util.regex.Pattern.MULTILINE);
             java.util.regex.Matcher m3 = p3.matcher(wifiStatus);
-            if (m3.find() && !m3.group(1).equals("<unknown") && !m3.group(1).equals("NONE")) {
-                return "Wi-Fi: " + m3.group(1);
+            if (m3.find()) {
+                String ssid = m3.group(1).replace("\"", "").trim();
+                if (!ssid.isEmpty() && !ssid.equalsIgnoreCase("<unknown ssid>") && !ssid.equalsIgnoreCase("<unknown") && !ssid.equalsIgnoreCase("NONE")) {
+                    return "Wi-Fi: " + ssid;
+                }
             }
         }
 
@@ -840,23 +883,37 @@ public class MainActivity extends Activity {
                 process = pb.start();
             }
 
-            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    output.append(line).append("\n");
-                }
+            final Process proc = process;
+            Thread readerThread = new Thread(() -> {
+                try (BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        output.append(line).append("\n");
+                    }
+                } catch (Exception ignored) {}
+            });
+            readerThread.start();
+
+            boolean finished;
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                finished = process.waitFor(10, java.util.concurrent.TimeUnit.SECONDS);
+            } else {
+                readerThread.join(10000);
+                finished = !readerThread.isAlive();
             }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                boolean finished = process.waitFor(15, java.util.concurrent.TimeUnit.SECONDS);
-                if (!finished) {
+            if (!finished) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     process.destroyForcibly();
-                    Log.w("Pinion", "Root command timed out: " + command);
-                    return null;
+                } else {
+                    process.destroy();
                 }
-            } else {
-                process.waitFor();
+                readerThread.interrupt();
+                Log.w("Pinion", "Root command timed out: " + command);
+                return null;
             }
+
+            readerThread.join(2000);
             String res = output.toString();
             Log.d("Pinion", "runRootCommand [" + command + "] -> " + (res.length() > 100 ? res.substring(0, 100).trim() + "..." : res.trim()));
             return res;

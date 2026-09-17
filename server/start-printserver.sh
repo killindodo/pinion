@@ -30,6 +30,8 @@ export HOME=/root
 avahi-daemon -D >/dev/null 2>&1
 cupsd >/dev/null 2>&1
 " </dev/null >/dev/null 2>&1
+# Ensure daemons are active: chroot cupsd
+chroot $ROOTFS /usr/sbin/cupsd 2>/dev/null || true
 
 nohup chroot $ROOTFS /bin/bash -c "
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
