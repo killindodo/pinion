@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Dodo Head & Body Silhouette -->
+    <path
+        android:fillColor="@color/primary"
+        android:pathData="M 46,12
+                          C 36,12 28,18 25,28
+                          C 23,35 24,44 28,52
+                          C 22,58 14,68 14,78
+                          C 14,88 24,92 38,92
+                          C 58,92 76,82 82,68
+                          C 85,61 84,52 80,44
+                          C 76,35 70,28 62,20
+                          C 57,15 52,12 46,12 Z" />
+
+    <!-- Dodo Hooked Beak (Signature large curved down beak) -->
+    <path
+        android:fillColor="@color/accent"
+        android:pathData="M 28,26
+                          C 20,24 10,27 4,34
+                          C 0,39 -1,46 2,52
+                          C 5,56 12,54 14,48
+                          C 16,42 20,38 27,37 Z" />
+
+    <!-- Eye Contour -->
+    <path
+        android:fillColor="@color/bg_dark"
+        android:pathData="M 38,28 A 4.5,4.5 0 1 0 38,37 A 4.5,4.5 0 1 0 38,28 Z" />
+
+    <!-- Eye Pupil Highlight -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M 39.5,30.5 A 1.5,1.5 0 1 0 39.5,33.5 A 1.5,1.5 0 1 0 39.5,30.5 Z" />
+
+    <!-- Wing Plume Arc -->
+    <path
+        android:fillColor="@color/card_border"
+        android:pathData="M 44,60
+                          C 50,56 60,56 66,62
+                          C 70,66 70,74 65,78
+                          C 56,84 46,78 44,70 Z" />
+</vector>

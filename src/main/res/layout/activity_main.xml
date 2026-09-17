@@ -1,76 +1,135 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_scroll"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/bg_dark"
     android:fillViewport="true">
 
     <LinearLayout
+        android:id="@+id/root_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:maxWidth="640dp"
         android:orientation="vertical"
         android:padding="18dp">
 
-        <!-- App Header -->
-        <LinearLayout
+        <!-- App Header with Dodo Logo & Theme Selector -->
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:layout_marginBottom="18dp">
-
-            <ImageView
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:src="@drawable/ic_printer"
-                android:contentDescription="Printer Icon" />
+            android:layout_marginBottom="16dp">
 
             <LinearLayout
+                android:id="@+id/header_branding"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginStart="14dp">
+                android:layout_alignParentStart="true"
+                android:layout_centerVertical="true"
+                android:layout_toStartOf="@+id/btn_theme_selector"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <TextView
+                <!-- Dodo Bird Logo -->
+                <FrameLayout
+                    android:id="@+id/frame_dodo_logo"
+                    android:layout_width="46dp"
+                    android:layout_height="46dp"
+                    android:background="@drawable/logo_bg"
+                    android:padding="6dp">
+
+                    <ImageView
+                        android:id="@+id/iv_dodo_logo"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:contentDescription="Dodo-RF Logo"
+                        android:src="@drawable/ic_dodo" />
+                </FrameLayout>
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="PrintServer Root"
-                    android:textColor="@color/text_primary"
-                    android:textSize="22sp"
-                    android:textStyle="bold" />
+                    android:layout_marginStart="12dp"
+                    android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Universal Wireless Print Server"
-                    android:textColor="@color/text_muted"
-                    android:textSize="13sp" />
+                    <TextView
+                        android:id="@+id/tv_app_title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="PrintServer Root"
+                        android:textColor="@color/text_primary"
+                        android:textSize="20sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tv_app_subtitle"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Universal Wireless Print Server"
+                        android:textColor="@color/text_muted"
+                        android:textSize="12sp" />
+                </LinearLayout>
             </LinearLayout>
-        </LinearLayout>
 
-        <!-- Server Status Card -->
+            <!-- Dodo Theme Selector Chip -->
+            <LinearLayout
+                android:id="@+id/btn_theme_selector"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:layout_centerVertical="true"
+                android:background="@drawable/btn_theme_chip"
+                android:clickable="true"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="7dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="🎨"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tv_theme_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="5dp"
+                    android:text="Theme"
+                    android:textColor="@color/primary"
+                    android:textSize="11sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </RelativeLayout>
+
+        <!-- Live Server Status Card -->
         <LinearLayout
+            android:id="@+id/card_status"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:background="@drawable/card_bg"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
+            android:padding="16dp">
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <TextView
+                    android:id="@+id/label_status"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:letterSpacing="0.08"
                     android:text="LIVE STATUS"
                     android:textColor="@color/text_muted"
                     android:textSize="11sp"
-                    android:letterSpacing="0.08"
                     android:textStyle="bold" />
 
                 <TextView
@@ -82,7 +141,7 @@
                     android:paddingVertical="4dp"
                     android:text="RUNNING"
                     android:textColor="@color/status_green"
-                    android:textSize="12sp"
+                    android:textSize="11sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
@@ -90,54 +149,57 @@
                 android:id="@+id/tv_ip_address"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
                 android:text="IP: Detecting..."
                 android:textColor="@color/primary"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                android:layout_marginTop="10dp" />
+                android:textSize="17sp"
+                android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tv_wifi_ssid"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
                 android:text="Network: Wi-Fi Connected"
                 android:textColor="@color/text_muted"
-                android:textSize="12sp"
-                android:layout_marginTop="3dp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/tv_printer_model"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
                 android:text="Printer: Detecting USB..."
                 android:textColor="@color/text_secondary"
-                android:textSize="13sp"
-                android:layout_marginTop="6dp" />
+                android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/tv_root_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="3dp"
                 android:text="Root Access: Checking..."
                 android:textColor="@color/text_muted"
-                android:textSize="12sp"
-                android:layout_marginTop="3dp" />
+                android:textSize="12sp" />
 
             <!-- Action Buttons inside Status Card -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="14dp">
+                android:layout_marginTop="14dp"
+                android:orientation="horizontal">
 
                 <Button
                     android:id="@+id/btn_copy_url"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
                     android:layout_marginEnd="5dp"
+                    android:layout_weight="1"
                     android:background="@drawable/btn_action_style"
-                    android:text="📋 Copy Printer URL"
+                    android:minHeight="46dp"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="8dp"
+                    android:text="📋 Copy URL"
                     android:textColor="@color/text_primary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -145,35 +207,40 @@
                 <Button
                     android:id="@+id/btn_open_webui"
                     android:layout_width="0dp"
-                    android:layout_height="40dp"
-                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
                     android:layout_marginStart="5dp"
+                    android:layout_weight="1"
                     android:background="@drawable/btn_action_style"
-                    android:text="🌐 Web Dashboard"
+                    android:minHeight="46dp"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="8dp"
+                    android:text="🌐 Web UI"
                     android:textColor="@color/text_primary"
                     android:textSize="12sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Controls Card -->
+        <!-- Server Controls Card -->
         <LinearLayout
+            android:id="@+id/card_controls"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:background="@drawable/card_bg"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="16dp">
+            android:padding="16dp">
 
             <TextView
+                android:id="@+id/label_controls"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:letterSpacing="0.08"
                 android:text="SERVER CONTROLS"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp"
-                android:letterSpacing="0.08"
-                android:textStyle="bold"
-                android:layout_marginBottom="12dp" />
+                android:textStyle="bold" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -183,154 +250,209 @@
                 <Button
                     android:id="@+id/btn_start"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
                     android:background="@drawable/btn_start_style"
+                    android:minHeight="46dp"
+                    android:paddingVertical="8dp"
                     android:text="▶ Start"
                     android:textColor="@color/text_primary"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
 
                 <Button
                     android:id="@+id/btn_stop"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
+                    android:layout_weight="1"
                     android:background="@drawable/btn_stop_style"
+                    android:minHeight="46dp"
+                    android:paddingVertical="8dp"
                     android:text="⏹ Stop"
                     android:textColor="@color/text_primary"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginTop="10dp">
+                android:layout_marginTop="10dp"
+                android:orientation="horizontal">
 
                 <Button
                     android:id="@+id/btn_restart"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
                     android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
                     android:background="@drawable/btn_action_style"
+                    android:minHeight="46dp"
+                    android:paddingVertical="8dp"
                     android:text="🔄 Restart"
                     android:textColor="@color/text_primary"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
 
                 <Button
                     android:id="@+id/btn_test_page"
                     android:layout_width="0dp"
-                    android:layout_height="44dp"
-                    android:layout_weight="1"
+                    android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
+                    android:layout_weight="1"
                     android:background="@drawable/btn_start_style"
+                    android:minHeight="46dp"
+                    android:paddingVertical="8dp"
                     android:text="🖨️ Test Print"
                     android:textColor="@color/text_primary"
+                    android:textSize="13sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Client Usage Guide Card -->
+        <!-- Web UI & Direct Print Info Card -->
         <LinearLayout
+            android:id="@+id/card_webui_info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
             android:background="@drawable/card_bg"
             android:orientation="vertical"
-            android:padding="16dp"
-            android:layout_marginBottom="20dp">
+            android:padding="16dp">
 
             <TextView
+                android:id="@+id/label_webui"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
+                android:letterSpacing="0.08"
+                android:text="🌐 DODO WEB DASHBOARD (:8080)"
+                android:textColor="@color/text_muted"
+                android:textSize="11sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/tv_webui_desc"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Open the Web UI in any browser on your Wi-Fi (iPhone, Mac, PC, Android, Tablet) to drag-and-drop print PDF/images directly without configuring any drivers!"
+                android:textColor="@color/text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Client Usage Guide Card -->
+        <LinearLayout
+            android:id="@+id/card_guide"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="18dp"
+            android:background="@drawable/card_bg"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/label_guide"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="12dp"
+                android:letterSpacing="0.08"
                 android:text="HOW TO CONNECT (NO PASSWORD REQUIRED)"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp"
-                android:letterSpacing="0.08"
-                android:textStyle="bold"
-                android:layout_marginBottom="12dp" />
+                android:textStyle="bold" />
 
             <!-- Windows -->
             <TextView
+                android:id="@+id/tv_title_win"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="🪟 Windows 10 / 11"
                 android:textColor="@color/primary"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
+
             <TextView
                 android:id="@+id/tv_guide_windows"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:layout_marginTop="2dp"
                 android:text="Settings &gt; Bluetooth &amp; devices &gt; Printers &amp; scanners &gt; Add printer. Or click 'Add manually' &gt; Select a shared printer by name &gt; Paste the copied Printer URL."
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="10dp" />
+                android:textSize="12sp" />
 
             <!-- Android -->
             <TextView
+                android:id="@+id/tv_title_android"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="📱 Android"
                 android:textColor="@color/primary"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
+
             <TextView
+                android:id="@+id/tv_guide_android"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:layout_marginTop="2dp"
                 android:text="Open any file/photo &gt; Tap Share &gt; Print &gt; Select 'HP LaserJet M1005' directly from the printer list (discovered automatically via Default Print Service / Mopria)."
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="10dp" />
+                android:textSize="12sp" />
 
             <!-- iOS / Mac -->
             <TextView
+                android:id="@+id/tv_title_apple"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="🍎 iOS / macOS (AirPrint)"
                 android:textColor="@color/primary"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
+
             <TextView
+                android:id="@+id/tv_guide_apple"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="10dp"
+                android:layout_marginTop="2dp"
                 android:text="Zero configuration required! On iPhone, iPad, or Mac, open any document, tap Share &gt; Print. The printer will appear instantly under AirPrint."
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:layout_marginTop="2dp"
-                android:layout_marginBottom="10dp" />
+                android:textSize="12sp" />
 
             <!-- Linux -->
             <TextView
+                android:id="@+id/tv_title_linux"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="🐧 Linux"
                 android:textColor="@color/primary"
-                android:textSize="14sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
+
             <TextView
                 android:id="@+id/tv_guide_linux"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
                 android:text="Command: lp -h &lt;PHONE_IP&gt;:631 -d HP_LaserJet_M1005 document.pdf"
                 android:textColor="@color/text_secondary"
-                android:textSize="12sp"
-                android:layout_marginTop="2dp" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <!-- Branding & Credits Footer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
             android:gravity="center"
+            android:orientation="vertical"
             android:paddingVertical="12dp">
 
             <TextView
+                android:id="@+id/tv_footer_branding"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Made with love by killindodo"
@@ -342,11 +464,11 @@
                 android:id="@+id/tv_github_link"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:padding="6dp"
                 android:text="www.github.com/killindodo"
                 android:textColor="@color/primary"
-                android:textSize="13sp"
-                android:layout_marginTop="4dp"
-                android:padding="6dp" />
+                android:textSize="13sp" />
         </LinearLayout>
 
     </LinearLayout>

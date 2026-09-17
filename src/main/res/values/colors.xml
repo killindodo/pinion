@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Deep Slate Theme (Default) -->
     <color name="bg_dark">#0F172A</color>
     <color name="card_bg">#1E293B</color>
     <color name="card_border">#334155</color>
@@ -9,11 +10,49 @@
     <color name="text_primary">#F8FAFC</color>
     <color name="text_secondary">#94A3B8</color>
     <color name="text_muted">#64748B</color>
+
+    <!-- Status Colors -->
     <color name="status_green">#22C55E</color>
     <color name="status_red">#EF4444</color>
     <color name="status_amber">#F59E0B</color>
+
+    <!-- Button Default Colors -->
     <color name="btn_start">#10B981</color>
     <color name="btn_stop">#EF4444</color>
     <color name="btn_restart">#3B82F6</color>
     <color name="btn_test">#8B5CF6</color>
+
+    <!-- Dodo Matrix Green Theme -->
+    <color name="matrix_bg">#000000</color>
+    <color name="matrix_card_bg">#0A120D</color>
+    <color name="matrix_border">#113322</color>
+    <color name="matrix_green">#00FF66</color>
+    <color name="matrix_cyan">#00E5FF</color>
+    <color name="matrix_text">#00FF66</color>
+    <color name="matrix_muted">#008833</color>
+
+    <!-- Dodo Cyberpunk Neon Theme -->
+    <color name="cyber_bg">#05020A</color>
+    <color name="cyber_card_bg">#12091F</color>
+    <color name="cyber_border">#44125E</color>
+    <color name="cyber_cyan">#00F0FF</color>
+    <color name="cyber_pink">#FF007F</color>
+    <color name="cyber_text">#00F0FF</color>
+    <color name="cyber_muted">#BD00FF</color>
+
+    <!-- Dodo Monochrome Theme -->
+    <color name="mono_bg">#0D0D0D</color>
+    <color name="mono_card_bg">#1A1A1A</color>
+    <color name="mono_border">#333333</color>
+    <color name="mono_white">#FFFFFF</color>
+    <color name="mono_gray">#CCCCCC</color>
+    <color name="mono_muted">#888888</color>
+
+    <!-- Dodo Light Mode Theme -->
+    <color name="light_bg">#F4F6F8</color>
+    <color name="light_card_bg">#FFFFFF</color>
+    <color name="light_border">#D0D7DE</color>
+    <color name="light_blue">#0969DA</color>
+    <color name="light_text">#1F2328</color>
+    <color name="light_muted">#656D76</color>
 </resources>
