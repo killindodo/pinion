@@ -478,7 +478,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       <div>
         <strong style="color:var(--cyan);">🐧 Linux:</strong>
         <p style="color:var(--text-muted); font-size:11px; margin-top:3px;">
-          Run: <code style="color:var(--green);">lp -h &lt;IP&gt;:631 -d HP_LaserJet_M1005 file.pdf</code>
+          Run: <code style="color:var(--green);">lp -h &lt;IP&gt;:631 -d &lt;PRINTER&gt; file.pdf</code>
         </p>
       </div>
     </div>
@@ -548,12 +548,13 @@ HTML_PAGE = r"""<!DOCTYPE html>
           badge.innerText = "STOPPED";
         }
 
-        document.getElementById("valPrinter").innerText = data.printer || "HP LaserJet M1005 MFP";
+        document.getElementById("valPrinter").innerText = data.printer || "USB Printer Connected";
         document.getElementById("valIp").innerText = data.ip + ":631";
         document.getElementById("valWifi").innerText = data.wifi || "Wi-Fi Connected";
         document.getElementById("valQueue").innerText = data.queue_state || "Accepting jobs, idle";
 
-        currentIppUrl = "http://" + data.ip + ":631/printers/HP_LaserJet_M1005";
+        const qName = data.queue || "<PRINTER_NAME>";
+        currentIppUrl = "http://" + data.ip + ":631/printers/" + qName;
         document.getElementById("valIpp").innerText = currentIppUrl;
         document.getElementById("cupsAdminLink").href = "http://" + data.ip + ":631";
 
@@ -728,8 +729,17 @@ def get_cups_status():
     except Exception:
         running = False
 
-    printer_name = "HP LaserJet M1005 MFP"
+    queue_name = "<PRINTER_NAME>"
+    printer_name = "USB Printer (Connected)"
     queue_state = "Idle"
+    try:
+        d_out = subprocess.check_output("lpstat -d 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
+        if "system default destination:" in d_out:
+            queue_name = d_out.split("system default destination:")[1].strip()
+            printer_name = f"Printer ({queue_name})"
+    except Exception:
+        pass
+
     try:
         p_out = subprocess.check_output("lpstat -p 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
         if "is idle" in p_out:
@@ -762,6 +772,7 @@ def get_cups_status():
     return {
         "running": running,
         "printer": printer_name,
+        "queue": queue_name,
         "queue_state": queue_state,
         "jobs": jobs,
         "ip": get_lan_ip(),
@@ -797,9 +808,9 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
         if self.path == "/api/testprint":
             try:
                 # Send test print via lp
-                cmd = "echo 'Pinion Test Page\nUNIVERSAL WIRELESS PRINT ENGINE BY KILLINDODO\nDate: $(date)\nCUPS Server: OK\nPrinter: HP LaserJet M1005 MFP\n\nMade with love by killindodo\nhttps://github.com/killindodo' | lp -d HP_LaserJet_M1005"
+                cmd = "echo 'Pinion Test Page\nUNIVERSAL WIRELESS PRINT ENGINE BY KILLINDODO\nDate: $(date)\nCUPS Server: OK\n\nMade with love by killindodo\nhttps://github.com/killindodo' | lp"
                 subprocess.check_output(cmd, shell=True, env=ENV_PATH)
-                resp = {"success": True, "message": "Test print submitted to HP LaserJet M1005!"}
+                resp = {"success": True, "message": "Test print submitted to default printer!"}
             except Exception as e:
                 resp = {"success": False, "error": str(e)}
 
@@ -828,7 +839,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                 body = self.rfile.read(content_len).decode("utf-8")
                 payload = json.loads(body) if body else {}
                 if payload.get("all"):
-                    subprocess.call("cancel -a HP_LaserJet_M1005 2>/dev/null || true", shell=True, env=ENV_PATH)
+                    subprocess.call("cancel -a 2>/dev/null || true", shell=True, env=ENV_PATH)
                     resp = {"success": True, "message": "All print jobs cancelled"}
                 elif payload.get("jobId"):
                     subprocess.call(f"cancel {payload['jobId']} 2>/dev/null || true", shell=True, env=ENV_PATH)
@@ -870,7 +881,7 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                             break
 
                     if saved_path and os.path.exists(saved_path):
-                        cmd = f"lp -d HP_LaserJet_M1005 -t '{file_name}' '{saved_path}'"
+                        cmd = f"lp -t '{file_name}' '{saved_path}'"
                         out = subprocess.check_output(cmd, shell=True, text=True, env=ENV_PATH).strip()
                         resp = {"success": True, "message": f"Printed '{file_name}' ({out})"}
                     else:

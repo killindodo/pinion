@@ -421,7 +421,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="10dp"
                         android:layout_marginTop="2dp"
-                        android:text="Open any file/photo &gt; Tap Share &gt; Print &gt; Select 'HP LaserJet M1005' directly from the printer list (discovered automatically via Default Print Service / Mopria)."
+                        android:text="Open any file/photo &gt; Tap Share &gt; Print &gt; Select your discovered printer directly from the list (via Default Print Service / Mopria)."
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
 
@@ -460,7 +460,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="2dp"
-                        android:text="Command: lp -h &lt;PHONE_IP&gt;:631 -d HP_LaserJet_M1005 document.pdf"
+                        android:text="Command: lp -h &lt;PHONE_IP&gt;:631 -d &lt;PRINTER&gt; document.pdf"
                         android:textColor="@color/text_secondary"
                         android:textSize="12sp" />
                 </LinearLayout>

@@ -1,7 +1,7 @@
 # Pinion ⚙️🪶
 ### Universal Wireless Print Engine for Android
 
-Turn any rooted Android device into a standalone network print server with native support for **Apple AirPrint**, **Android Mopria / Default Print Service**, **Windows IPP**, and **Linux CUPS**. Engineered for USB printers, including host-based GDI devices like the HP LaserJet M1005 MFP.
+Turn any rooted Android device into a standalone network print server with native support for **Apple AirPrint**, **Android Mopria / Default Print Service**, **Windows IPP**, and **Linux CUPS**. Engineered for USB printers across standard PostScript, PCL, and host-based GDI devices.
 
 Developed by [killindodo](https://github.com/killindodo).
 
@@ -29,9 +29,9 @@ No passwords or client drivers required. Ensure your client device is connected 
 2. Click **Add device**. Windows will discover the printer automatically via mDNS.
 3. If connecting manually, select **The printer that I want isn't listed** > **Select a shared printer by name**:
    ```text
-   http://<DEVICE_IP>:631/printers/HP_LaserJet_M1005
+   http://<DEVICE_IP>:631/printers/<PRINTER_NAME>
    ```
-4. Choose the generic MS Publisher Imagesetter or HP LaserJet driver if prompted.
+4. Choose the appropriate driver or generic IPP / MS Publisher Imagesetter if prompted.
 
 ### Android
 1. Open any document, photo, or web page.
@@ -45,7 +45,7 @@ No passwords or client drivers required. Ensure your client device is connected 
 ### Linux
 Submit jobs directly through the command line or desktop printer settings:
 ```bash
-lp -h <DEVICE_IP>:631 -d HP_LaserJet_M1005 document.pdf
+lp -h <DEVICE_IP>:631 -d <PRINTER_NAME> document.pdf
 ```
 
 ### Browser Direct Print (:8080)

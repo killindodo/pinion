@@ -129,7 +129,7 @@ public class MainActivity extends Activity {
     private ConnectivityManager.NetworkCallback networkCallback;
 
     private String currentIp = "127.0.0.1";
-    private String currentPrinterQueue = "HP_LaserJet_M1005";
+    private String currentPrinterQueue = "<PRINTER_NAME>";
     private boolean isServerRunning = false;
 
     @Override
@@ -512,9 +512,10 @@ public class MainActivity extends Activity {
                     runRootCommand("killall cupsd avahi-daemon python3 2>/dev/null || true; sleep 1; /data/local/bin/start-printserver.sh");
                     break;
                 case "TEST_PAGE":
+                    String lpTarget = (currentPrinterQueue == null || currentPrinterQueue.startsWith("<")) ? "" : (" -d " + currentPrinterQueue);
                     runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /bin/bash -c "
                             + "\"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; "
-                            + "echo 'PrintServer Root Test Page - killindodo' | lp -d " + currentPrinterQueue + "\"");
+                            + "echo 'Pinion Test Page - Universal Wireless Print Engine - killindodo' | lp" + lpTarget + "\"");
                     break;
             }
 
@@ -552,13 +553,34 @@ public class MainActivity extends Activity {
     }
 
     private String checkUsbPrinter() {
-        String result = runRootCommand("lsusb 2>/dev/null || dumpsys usb 2>/dev/null || true");
-        if (result != null) {
-            if (result.contains("03f0:3d17") || result.contains("M1005")) {
-                return "HP LaserJet M1005 MFP (Connected)";
+        // Query CUPS default printer or configured queue dynamically
+        String queueOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -d 2>/dev/null || true");
+        if (queueOut != null && queueOut.contains("system default destination:")) {
+            String[] parts = queueOut.split("system default destination:");
+            if (parts.length > 1) {
+                String detected = parts[1].trim();
+                if (!detected.isEmpty()) currentPrinterQueue = detected;
             }
-            if (result.contains("LaserJet") || result.contains("Printer")) {
-                return "USB Printer Detected";
+        } else {
+            String pOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -p 2>/dev/null || true");
+            if (pOut != null && pOut.contains("printer ")) {
+                try {
+                    String firstLine = pOut.split("\n")[0];
+                    String[] pParts = firstLine.split(" ");
+                    if (pParts.length > 1 && !pParts[1].trim().isEmpty()) {
+                        currentPrinterQueue = pParts[1].trim();
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+
+        String result = runRootCommand("lsusb 2>/dev/null || dumpsys usb 2>/dev/null || true");
+        if (result != null && !result.trim().isEmpty()) {
+            String lower = result.toLowerCase();
+            if (lower.contains("printer") || lower.contains("print") || (result.contains("Bus ") && result.split("\n").length > 1)) {
+                return (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<"))
+                        ? "USB Printer Connected (" + currentPrinterQueue + ")"
+                        : "USB Printer Connected";
             }
         }
         return "No USB Printer Detected (Connect OTG Cable)";

@@ -441,7 +441,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="1dp"
-                android:text="Command: lp -h &lt;PHONE_IP&gt;:631 -d HP_LaserJet_M1005 document.pdf"
+                android:text="Command: lp -h &lt;PHONE_IP&gt;:631 -d &lt;PRINTER&gt; document.pdf"
                 android:textColor="@color/text_secondary"
                 android:textSize="11sp" />
         </LinearLayout>
