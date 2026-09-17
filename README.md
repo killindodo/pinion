@@ -20,6 +20,35 @@ Pinion bridges USB OTG printers directly to your local wireless network using an
 
 ---
 
+## Quick Start & Engine Setup
+
+Pinion requires root access and the background print engine (CUPS, Avahi, Python 3, and printer drivers).
+
+### Option 1: In-App 1-Click Install (Recommended)
+1. Install and launch **PrintServer-Root.apk** on any rooted Android device.
+2. The app detects that the engine is missing and displays **SETUP NEEDED**.
+3. Tap **⚡ Install Print Engine (Magisk Module)**.
+4. Pinion will download `pinion-core.zip` directly from GitHub releases and flash it via Magisk root automatically.
+5. Plug your printer into USB OTG and tap **▶ START**!
+
+### Option 2: Flash Magisk Module Manually
+1. Download `pinion-core.zip` from the latest [GitHub Releases](https://github.com/killindodo/PrintServer-App/releases).
+2. Open the **Magisk** (or KernelSU / APatch) app.
+3. Go to **Modules** > **Install from storage** and select `pinion-core.zip`.
+4. Launch Pinion and tap **▶ START**.
+
+### Option 3: Termux Debian Fallback
+If you prefer running inside a user-managed Termux container:
+```bash
+pkg update && pkg install -y proot-distro
+proot-distro install debian
+proot-distro login debian -- apt update
+proot-distro login debian -- apt install -y cups cups-client cups-filters avahi-daemon python3 printer-driver-foo2zjs hplip
+```
+Pinion automatically detects the Termux container and starts seamlessly.
+
+---
+
 ## Client Connection Guide
 
 No passwords or client drivers required. Ensure your client device is connected to the same Wi-Fi network.

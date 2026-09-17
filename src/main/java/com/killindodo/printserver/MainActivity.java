@@ -25,18 +25,25 @@ import android.util.TypedValue;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.Inet4Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
 import java.net.Socket;
+import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.concurrent.ExecutorService;
@@ -144,6 +151,9 @@ public class MainActivity extends Activity {
     private TextView tvSrvIpp;
     private TextView tvSrvWebui;
     private TextView tvSrvBonjour;
+    private TextView tvEngineStatus;
+    private Button btnInstallEngine;
+    private volatile String cachedRootfsPath = null;
 
     private String currentIp = "127.0.0.1";
     private String currentPrinterQueue = "<PRINTER_NAME>";
@@ -224,6 +234,11 @@ public class MainActivity extends Activity {
         tvSrvIpp = findViewById(R.id.tv_srv_ipp);
         tvSrvWebui = findViewById(R.id.tv_srv_webui);
         tvSrvBonjour = findViewById(R.id.tv_srv_bonjour);
+        tvEngineStatus = findViewById(R.id.tv_engine_status);
+        btnInstallEngine = findViewById(R.id.btn_install_engine);
+        if (btnInstallEngine != null) {
+            btnInstallEngine.setOnClickListener(v -> showInstallEngineDialog());
+        }
 
         // Theme Switcher Trigger (Clicking logo or theme chip)
         View.OnClickListener themeClickListener = v -> showThemeDialog();
@@ -561,19 +576,21 @@ public class MainActivity extends Activity {
                 final String lanIp = getLocalIpAddress();
                 final String wifiSsid = getConnectedWifiName();
                 final boolean cupsRunning = checkCupsRunning();
+                final String rootfsPath = getRootfsPath();
+                final boolean engineInstalled = (rootfsPath != null);
                 final String usbPrinter = checkUsbPrinter();
 
                 // Sync Wi-Fi SSID to chroot cache for Python Web UI
-                if (wifiSsid != null && !wifiSsid.isEmpty() && !wifiSsid.equals("Wi-Fi Connected")) {
+                if (engineInstalled && wifiSsid != null && !wifiSsid.isEmpty() && !wifiSsid.equals("Wi-Fi Connected")) {
                     String cleanSsid = wifiSsid.replace("Wi-Fi: ", "").trim();
                     if (!cleanSsid.isEmpty()) {
-                        runRootCommand("echo '" + cleanSsid.replace("'", "") + "' > /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs/tmp/wifi_ssid.txt 2>/dev/null || true");
+                        runRootCommand("echo '" + cleanSsid.replace("'", "") + "' > " + rootfsPath + "/tmp/wifi_ssid.txt 2>/dev/null || true");
                     }
                 }
 
                 String spoolText = "Spooler: Queue Idle (0 active jobs)";
-                if (cupsRunning) {
-                    String queueOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -o 2>/dev/null || true");
+                if (engineInstalled && cupsRunning) {
+                    String queueOut = runRootCommand("chroot " + rootfsPath + " /usr/bin/lpstat -o 2>/dev/null || true");
                     if (queueOut != null && !queueOut.trim().isEmpty()) {
                         int jobCount = queueOut.trim().split("\n").length;
                         if (usbPrinter.contains("(USB Disconnected)") || usbPrinter.contains("No USB Printer")) {
@@ -591,6 +608,19 @@ public class MainActivity extends Activity {
 
                     tvRootStatus.setText(hasRoot ? "Root Access: Granted (Active)" : "Root Access: Denied (Required)");
                     tvRootStatus.setTextColor(hasRoot ? currentTheme.statusGreen : 0xFFEF4444);
+
+                    if (tvEngineStatus != null) {
+                        if (engineInstalled) {
+                            String engineType = rootfsPath.contains("adb") ? "Magisk Module" : (rootfsPath.contains("termux") ? "Termux Debian" : "Standalone");
+                            tvEngineStatus.setText("Engine: Active (" + engineType + ")");
+                            tvEngineStatus.setTextColor(currentTheme.statusGreen);
+                            if (btnInstallEngine != null) btnInstallEngine.setVisibility(View.GONE);
+                        } else {
+                            tvEngineStatus.setText("Engine: Not Installed (Setup Required)");
+                            tvEngineStatus.setTextColor(0xFFEF4444);
+                            if (btnInstallEngine != null) btnInstallEngine.setVisibility(View.VISIBLE);
+                        }
+                    }
 
                     tvIpAddress.setText("IP: " + lanIp + ":631  |  Web: :8080");
                     tvWifiSsid.setText("Network: " + wifiSsid);
@@ -627,7 +657,7 @@ public class MainActivity extends Activity {
                         tvSrvBonjour.setTextColor(cupsRunning ? currentTheme.statusGreen : 0xFFEF4444);
                     }
 
-                    updateStatusBadge(cupsRunning);
+                    updateStatusBadge(cupsRunning, !engineInstalled);
                 });
             } finally {
                 isStatusRefreshing.set(false);
@@ -636,7 +666,19 @@ public class MainActivity extends Activity {
     }
 
     private void updateStatusBadge(boolean running) {
-        if (running) {
+        updateStatusBadge(running, getRootfsPath() == null);
+    }
+
+    private void updateStatusBadge(boolean running, boolean engineMissing) {
+        if (engineMissing) {
+            tvStatusBadge.setText("SETUP NEEDED");
+            tvStatusBadge.setTextColor(0xFFF59E0B);
+            GradientDrawable badgeBg = new GradientDrawable();
+            badgeBg.setCornerRadius(dpToPx(12));
+            badgeBg.setColor(0x30F59E0B);
+            badgeBg.setStroke(dpToPx(1), 0xFFF59E0B);
+            tvStatusBadge.setBackground(badgeBg);
+        } else if (running) {
             tvStatusBadge.setText("RUNNING");
             tvStatusBadge.setTextColor(currentTheme.statusGreen);
             GradientDrawable badgeBg = new GradientDrawable();
@@ -681,6 +723,14 @@ public class MainActivity extends Activity {
             Log.d("Pinion", "executeRootAction worker starting for: " + action);
             switch (action) {
                 case "START":
+                    String startRootfs = getRootfsPath();
+                    if (startRootfs == null) {
+                        mainHandler.post(() -> {
+                            showToast("Print engine not installed! Please install the engine first.");
+                            showInstallEngineDialog();
+                        });
+                        break;
+                    }
                     ensureStartupScriptExists();
                     runRootCommand("/data/local/bin/start-printserver.sh");
                     break;
@@ -690,8 +740,11 @@ public class MainActivity extends Activity {
                 case "RESTART":
                     runRootCommand("killall cupsd avahi-daemon python3 2>/dev/null; pkill -9 cupsd 2>/dev/null; pkill -9 -f printserver-webui.py 2>/dev/null; true");
                     try { Thread.sleep(400); } catch (InterruptedException ignored) {}
-                    ensureStartupScriptExists();
-                    runRootCommand("/data/local/bin/start-printserver.sh");
+                    String restartRootfs = getRootfsPath();
+                    if (restartRootfs != null) {
+                        ensureStartupScriptExists();
+                        runRootCommand("/data/local/bin/start-printserver.sh");
+                    }
                     break;
                 case "TEST_PAGE":
                     if (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<")) {
@@ -700,14 +753,24 @@ public class MainActivity extends Activity {
                             break;
                         }
                     }
-                    String lpTarget = (currentPrinterQueue == null || currentPrinterQueue.startsWith("<")) ? "" : (" -d " + currentPrinterQueue);
-                    runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /bin/bash -c "
-                            + "\"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; "
-                            + "echo 'Pinion Test Page' | lp" + lpTarget + "\" 2>/dev/null || true");
+                    String testRootfs = getRootfsPath();
+                    if (testRootfs != null) {
+                        String lpTarget = (currentPrinterQueue == null || currentPrinterQueue.startsWith("<")) ? "" : (" -d " + currentPrinterQueue);
+                        runRootCommand("chroot " + testRootfs + " /bin/bash -c "
+                                + "\"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; "
+                                + "echo 'Pinion Test Page' | lp" + lpTarget + "\" 2>/dev/null || true");
+                    } else {
+                        showToast("Print engine not installed");
+                    }
                     break;
                 case "CLEAR_QUEUE":
-                    runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/cancel -a 2>/dev/null; true");
-                    showToast("Print queue cleared");
+                    String clearRootfs = getRootfsPath();
+                    if (clearRootfs != null) {
+                        runRootCommand("chroot " + clearRootfs + " /usr/bin/cancel -a 2>/dev/null; true");
+                        showToast("Print queue cleared");
+                    } else {
+                        showToast("Print engine not installed");
+                    }
                     break;
             }
 
@@ -747,7 +810,15 @@ public class MainActivity extends Activity {
             File scriptFile = new File(getCacheDir(), "start-printserver.sh");
             try (FileOutputStream fos = new FileOutputStream(scriptFile)) {
                 String script = "#!/system/bin/sh\n"
-                        + "ROOTFS=\"/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs\"\n"
+                        + "if [ -f \"/data/adb/pinion/rootfs/bin/sh\" ]; then\n"
+                        + "    ROOTFS=\"/data/adb/pinion/rootfs\"\n"
+                        + "elif [ -f \"/data/local/pinion/rootfs/bin/sh\" ]; then\n"
+                        + "    ROOTFS=\"/data/local/pinion/rootfs\"\n"
+                        + "elif [ -f \"/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs/bin/sh\" ]; then\n"
+                        + "    ROOTFS=\"/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs\"\n"
+                        + "else\n"
+                        + "    ROOTFS=\"/data/adb/pinion/rootfs\"\n"
+                        + "fi\n"
                         + "echo \"printserver\" > /sys/power/wake_lock 2>/dev/null\n"
                         + "chmod -R 666 /dev/bus/usb 2>/dev/null\n"
                         + "chmod -R 666 /dev/usb 2>/dev/null\n"
@@ -789,6 +860,29 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) {}
     }
 
+    private String getRootfsPath() {
+        if (cachedRootfsPath != null) {
+            String check = runRootCommand("[ -f '" + cachedRootfsPath + "/bin/sh' ] && echo OK || echo NO");
+            if (check != null && check.contains("OK")) {
+                return cachedRootfsPath;
+            }
+            cachedRootfsPath = null;
+        }
+        String[] candidatePaths = {
+            "/data/adb/pinion/rootfs",
+            "/data/local/pinion/rootfs",
+            "/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs"
+        };
+        for (String p : candidatePaths) {
+            String res = runRootCommand("[ -f '" + p + "/bin/sh' ] && echo YES || echo NO");
+            if (res != null && res.contains("YES")) {
+                cachedRootfsPath = p;
+                return p;
+            }
+        }
+        return null;
+    }
+
     private Boolean cachedRootAccess = null;
     private boolean checkRootAccess() {
         if (cachedRootAccess != null) return cachedRootAccess;
@@ -815,29 +909,31 @@ public class MainActivity extends Activity {
     }
 
     private String checkUsbPrinter() {
-        // Query CUPS default printer or configured queue dynamically
-        String queueOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -d 2>/dev/null || true");
-        if (queueOut != null && queueOut.contains("system default destination:")) {
-            String[] parts = queueOut.split("system default destination:");
-            if (parts.length > 1) {
-                String detected = parts[1].trim();
-                if (!detected.isEmpty() && detected.matches("^[a-zA-Z0-9_-]+$")) {
-                    currentPrinterQueue = detected;
-                }
-            }
-        } else {
-            String pOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -p 2>/dev/null || true");
-            if (pOut != null && pOut.contains("printer ")) {
-                try {
-                    String firstLine = pOut.split("\n")[0];
-                    String[] pParts = firstLine.split(" ");
-                    if (pParts.length > 1) {
-                        String detected = pParts[1].trim();
-                        if (!detected.isEmpty() && detected.matches("^[a-zA-Z0-9_-]+$")) {
-                            currentPrinterQueue = detected;
-                        }
+        String rootfs = getRootfsPath();
+        if (rootfs != null) {
+            String queueOut = runRootCommand("chroot " + rootfs + " /usr/bin/lpstat -d 2>/dev/null || true");
+            if (queueOut != null && queueOut.contains("system default destination:")) {
+                String[] parts = queueOut.split("system default destination:");
+                if (parts.length > 1) {
+                    String detected = parts[1].trim();
+                    if (!detected.isEmpty() && detected.matches("^[a-zA-Z0-9_-]+$")) {
+                        currentPrinterQueue = detected;
                     }
-                } catch (Exception ignored) {}
+                }
+            } else {
+                String pOut = runRootCommand("chroot " + rootfs + " /usr/bin/lpstat -p 2>/dev/null || true");
+                if (pOut != null && pOut.contains("printer ")) {
+                    try {
+                        String firstLine = pOut.split("\n")[0];
+                        String[] pParts = firstLine.split(" ");
+                        if (pParts.length > 1) {
+                            String detected = pParts[1].trim();
+                            if (!detected.isEmpty() && detected.matches("^[a-zA-Z0-9_-]+$")) {
+                                currentPrinterQueue = detected;
+                            }
+                        }
+                    } catch (Exception ignored) {}
+                }
             }
         }
 
@@ -859,6 +955,176 @@ public class MainActivity extends Activity {
             return currentPrinterQueue + (usbAttached ? " (Connected)" : " (USB Disconnected)");
         }
         return usbAttached ? "USB Printer Connected" : "No USB Printer Detected (Connect OTG Cable)";
+    }
+
+    private void showInstallEngineDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Pinion Print Engine");
+        builder.setMessage("Pinion requires the Linux print engine (CUPS, Avahi, Python 3, and printer drivers) to manage print jobs.\n\n"
+                + "Would you like to download and flash the Pinion Engine Magisk module directly from GitHub?");
+        builder.setPositiveButton("Download & Flash", (dialog, which) -> {
+            downloadAndInstallEngine();
+        });
+        builder.setNeutralButton("Check Local ZIP", (dialog, which) -> {
+            checkLocalModuleAndFlash();
+        });
+        builder.setNegativeButton("Cancel", null);
+        builder.show();
+    }
+
+    private void checkLocalModuleAndFlash() {
+        actionExecutor.execute(() -> {
+            String[] possiblePaths = {
+                "/sdcard/Download/pinion-core.zip",
+                "/sdcard/pinion-core.zip",
+                "/data/local/tmp/pinion-core.zip"
+            };
+            String found = null;
+            for (String p : possiblePaths) {
+                String res = runRootCommand("[ -f '" + p + "' ] && echo FOUND || echo NO");
+                if (res != null && res.contains("FOUND")) {
+                    found = p;
+                    break;
+                }
+            }
+            if (found != null) {
+                final String zipPath = found;
+                mainHandler.post(() -> {
+                    Toast.makeText(MainActivity.this, "Found local module: " + zipPath + ". Installing...", Toast.LENGTH_SHORT).show();
+                });
+                flashModuleZip(zipPath);
+            } else {
+                mainHandler.post(() -> {
+                    showToast("No pinion-core.zip found in /sdcard/Download/. Please place it there or choose Download.");
+                });
+            }
+        });
+    }
+
+    private void downloadAndInstallEngine() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(MainActivity.this);
+        builder.setTitle("Pinion Print Engine");
+        builder.setCancelable(false);
+
+        LinearLayout layout = new LinearLayout(MainActivity.this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dpToPx(20), dpToPx(16), dpToPx(20), dpToPx(16));
+
+        TextView msgView = new TextView(MainActivity.this);
+        msgView.setText("Connecting to GitHub...");
+        msgView.setTextColor(currentTheme.textPrimary);
+        msgView.setTextSize(14);
+        layout.addView(msgView);
+
+        ProgressBar progressBar = new ProgressBar(MainActivity.this, null, android.R.attr.progressBarStyleHorizontal);
+        progressBar.setMax(100);
+        progressBar.setProgress(0);
+        progressBar.setIndeterminate(false);
+        layout.addView(progressBar);
+
+        builder.setView(layout);
+        AlertDialog progressDialog = builder.create();
+        progressDialog.show();
+
+        actionExecutor.execute(() -> {
+            File targetZip = new File("/data/local/tmp/pinion-core.zip");
+            File localZip = new File("/sdcard/Download/pinion-core.zip");
+            boolean downloaded = false;
+
+            try {
+                String urlStr = "https://github.com/killindodo/PrintServer-App/releases/latest/download/pinion-core.zip";
+                URL url = new URL(urlStr);
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setInstanceFollowRedirects(true);
+                conn.setConnectTimeout(15000);
+                conn.setReadTimeout(30000);
+
+                int status = conn.getResponseCode();
+                if (status == HttpURLConnection.HTTP_MOVED_TEMP || status == HttpURLConnection.HTTP_MOVED_PERM || status == 307 || status == 308) {
+                    String newUrl = conn.getHeaderField("Location");
+                    if (newUrl != null) {
+                        conn = (HttpURLConnection) new URL(newUrl).openConnection();
+                        conn.setConnectTimeout(15000);
+                        conn.setReadTimeout(30000);
+                    }
+                }
+
+                int fileLength = conn.getContentLength();
+                try (InputStream input = new BufferedInputStream(conn.getInputStream());
+                     OutputStream output = new FileOutputStream(targetZip)) {
+                    byte[] data = new byte[8192];
+                    long total = 0;
+                    int count;
+                    while ((count = input.read(data)) != -1) {
+                        total += count;
+                        if (fileLength > 0) {
+                            int progress = (int) (total * 100 / fileLength);
+                            long mb = total / (1024 * 1024);
+                            mainHandler.post(() -> {
+                                msgView.setText("Downloading engine (" + mb + " MB)...");
+                                progressBar.setProgress(progress);
+                            });
+                        }
+                        output.write(data, 0, count);
+                    }
+                    output.flush();
+                    downloaded = true;
+                }
+            } catch (Exception e) {
+                Log.e("Pinion", "Download error", e);
+            }
+
+            if (!downloaded && localZip.exists()) {
+                runRootCommand("cp /sdcard/Download/pinion-core.zip /data/local/tmp/pinion-core.zip");
+                downloaded = true;
+            }
+
+            if (!downloaded) {
+                mainHandler.post(() -> {
+                    progressDialog.dismiss();
+                    Toast.makeText(MainActivity.this, "Download failed. Please check internet or place pinion-core.zip in Downloads folder.", Toast.LENGTH_LONG).show();
+                });
+                return;
+            }
+
+            mainHandler.post(() -> msgView.setText("Flashing Magisk module..."));
+            flashModuleZip("/data/local/tmp/pinion-core.zip");
+
+            mainHandler.post(() -> progressDialog.dismiss());
+        });
+    }
+
+    private void flashModuleZip(String zipPath) {
+        actionExecutor.execute(() -> {
+            mainHandler.post(() -> showToast("Flashing Pinion module via Magisk..."));
+            String out = runRootCommand("magisk --install-module " + zipPath + " 2>&1");
+            boolean installed = (out != null && out.contains("All done"));
+
+            if (!installed) {
+                mainHandler.post(() -> showToast("Extracting directly to /data/adb/pinion..."));
+                runRootCommand("mkdir -p /data/adb/pinion/rootfs /data/adb/pinion/bin");
+                runRootCommand("rm -rf /data/local/tmp/pinion_mod && mkdir -p /data/local/tmp/pinion_mod");
+                runRootCommand("unzip -o " + zipPath + " -d /data/local/tmp/pinion_mod 2>&1");
+                runRootCommand("if [ -f /data/local/tmp/pinion_mod/rootfs.tar.xz ]; then tar -xJf /data/local/tmp/pinion_mod/rootfs.tar.xz -C /data/adb/pinion/rootfs; elif [ -f /data/local/tmp/pinion_mod/rootfs.tar.gz ]; then tar -xzf /data/local/tmp/pinion_mod/rootfs.tar.gz -C /data/adb/pinion/rootfs; fi");
+                runRootCommand("cp /data/local/tmp/pinion_mod/start-printserver.sh /data/adb/pinion/bin/start-printserver.sh 2>/dev/null || true");
+                runRootCommand("chmod 755 /data/adb/pinion/bin/start-printserver.sh 2>/dev/null || true");
+                cachedRootfsPath = null;
+                installed = (getRootfsPath() != null);
+            } else {
+                cachedRootfsPath = null;
+            }
+
+            final boolean success = installed;
+            mainHandler.post(() -> {
+                if (success) {
+                    Toast.makeText(MainActivity.this, "✅ Pinion Print Engine installed successfully!", Toast.LENGTH_LONG).show();
+                    refreshStatus();
+                    executeRootAction("START");
+                } else {
+                    Toast.makeText(MainActivity.this, "Installation failed. Check root permissions and Magisk version.", Toast.LENGTH_LONG).show();
+                }
+            });
+        });
     }
 
     private String getLocalIpAddress() {

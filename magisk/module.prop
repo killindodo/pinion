@@ -1,0 +1,6 @@
+id=pinion-core
+name=Pinion Print Engine
+version=v1.0.0
+versionCode=100
+author=killindodo
+description=Universal print server engine (CUPS, Avahi, Python3 Web UI) for Android. Powered by Pinion.

@@ -194,6 +194,30 @@
                 android:textColor="@color/text_muted"
                 android:textSize="12sp" />
 
+            <TextView
+                android:id="@+id/tv_engine_status"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Engine: Checking..."
+                android:textColor="@color/text_muted"
+                android:textSize="12sp" />
+
+            <Button
+                android:id="@+id/btn_install_engine"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:background="@drawable/btn_action_style"
+                android:minHeight="44dp"
+                android:paddingHorizontal="10dp"
+                android:paddingVertical="8dp"
+                android:text="⚡ Install Print Engine (Magisk Module)"
+                android:textColor="@color/primary"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone" />
+
             <!-- Action Buttons inside Status Card -->
             <LinearLayout
                 android:layout_width="match_parent"

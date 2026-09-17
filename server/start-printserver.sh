@@ -1,6 +1,15 @@
 #!/system/bin/sh
 # Pinion - Universal Wireless Print Engine (start-printserver.sh)
-ROOTFS="/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs"
+# Auto-detect Pinion RootFS (Magisk Module -> Standalone -> Termux fallback)
+if [ -f "/data/adb/pinion/rootfs/bin/sh" ]; then
+    ROOTFS="/data/adb/pinion/rootfs"
+elif [ -f "/data/local/pinion/rootfs/bin/sh" ]; then
+    ROOTFS="/data/local/pinion/rootfs"
+elif [ -f "/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs/bin/sh" ]; then
+    ROOTFS="/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs"
+else
+    ROOTFS="/data/adb/pinion/rootfs"
+fi
 echo "printserver" > /sys/power/wake_lock 2>/dev/null
 
 chmod -R 666 /dev/bus/usb 2>/dev/null
