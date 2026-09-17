@@ -468,7 +468,7 @@ public class MainActivity extends Activity {
                 tvPrinterModel.setText("Printer: " + usbPrinter);
 
                 if (tvGuideLinux != null) {
-                    tvGuideLinux.setText("Command: lp -h " + lanIp + ":631 -d " + currentPrinterQueue + " document.pdf");
+                    tvGuideLinux.setText("Command: lp -h " + lanIp + ":631 -d <PRINTER> document.pdf");
                 }
 
                 updateStatusBadge(cupsRunning);
@@ -578,9 +578,7 @@ public class MainActivity extends Activity {
         if (result != null && !result.trim().isEmpty()) {
             String lower = result.toLowerCase();
             if (lower.contains("printer") || lower.contains("print") || (result.contains("Bus ") && result.split("\n").length > 1)) {
-                return (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<"))
-                        ? "USB Printer Connected (" + currentPrinterQueue + ")"
-                        : "USB Printer Connected";
+                return "USB Printer Connected";
             }
         }
         return "No USB Printer Detected (Connect OTG Cable)";
