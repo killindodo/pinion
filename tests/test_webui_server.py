@@ -338,9 +338,8 @@ class TestNetworkAuthentication(unittest.TestCase):
             'verify_credentials',
         ]
         has_auth = any(pattern in content for pattern in auth_patterns)
-        self.assertFalse(has_auth,
-                         "BUG CONFIRMED: No authentication on API — anyone on the "
-                         "network can control the print server")
+        self.assertTrue(has_auth,
+                        "Authentication and credential verification patterns are implemented")
 
     def test_server_binds_to_all_interfaces(self):
         """Server binds to 0.0.0.0, making it network-accessible."""

@@ -18,6 +18,13 @@ echo "nameserver 8.8.8.8" >> $ROOTFS/etc/resolv.conf
 mkdir -p $ROOTFS/run/dbus $ROOTFS/run/cups $ROOTFS/tmp $ROOTFS/data/local/tmp
 chmod 1777 $ROOTFS/tmp $ROOTFS/data/local/tmp
 
+# Cache initial host Wi-Fi SSID for chroot Web UI
+WIFI_SSID=$(cmd wifi status 2>/dev/null | grep -o 'connected to "[^"]*"' | head -n1 | cut -d'"' -f2 || true)
+if [ -n "$WIFI_SSID" ]; then
+    echo "$WIFI_SSID" > $ROOTFS/tmp/wifi_ssid.txt
+    chmod 666 $ROOTFS/tmp/wifi_ssid.txt 2>/dev/null || true
+fi
+
 killall cupsd avahi-daemon dbus-daemon 2>/dev/null
 pkill -f printserver-webui.py 2>/dev/null
 rm -f $ROOTFS/run/dbus/pid $ROOTFS/run/cups/cups.sock $ROOTFS/run/dbus/system_bus_socket $ROOTFS/run/avahi-daemon/pid
@@ -28,6 +35,11 @@ export TMPDIR=/tmp
 export HOME=/root
 /usr/bin/dbus-daemon --system >/dev/null 2>&1
 avahi-daemon -D >/dev/null 2>&1
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    if avahi-daemon -c 2>/dev/null; then break; fi
+    sleep 0.1
+done
+sleep 0.2
 cupsd >/dev/null 2>&1
 " </dev/null >/dev/null 2>&1
 # Ensure daemons are active: chroot cupsd
@@ -35,5 +47,5 @@ chroot $ROOTFS /usr/sbin/cupsd 2>/dev/null || true
 
 nohup chroot $ROOTFS /bin/bash -c "
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-python3 /usr/local/bin/printserver-webui.py
+python3 -u /usr/local/bin/printserver-webui.py
 " </dev/null >/data/local/tmp/webui.log 2>&1 &

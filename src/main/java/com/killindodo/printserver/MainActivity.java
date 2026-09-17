@@ -41,6 +41,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Enumeration;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class MainActivity extends Activity {
 
@@ -131,10 +132,18 @@ public class MainActivity extends Activity {
     private TextView tvTitleApple;
     private TextView tvTitleLinux;
 
-    private final ExecutorService executor = Executors.newCachedThreadPool();
+    private final ExecutorService statusExecutor = Executors.newSingleThreadExecutor();
+    private final ExecutorService actionExecutor = Executors.newSingleThreadExecutor();
+    private final AtomicBoolean isStatusRefreshing = new AtomicBoolean(false);
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
     private ConnectivityManager connectivityManager;
     private ConnectivityManager.NetworkCallback networkCallback;
+    private final Runnable networkDebounceRunnable = () -> refreshStatus();
+
+    private TextView tvSrvAirprint;
+    private TextView tvSrvIpp;
+    private TextView tvSrvWebui;
+    private TextView tvSrvBonjour;
 
     private String currentIp = "127.0.0.1";
     private String currentPrinterQueue = "<PRINTER_NAME>";
@@ -211,6 +220,11 @@ public class MainActivity extends Activity {
         tvTitleApple = findViewById(R.id.tv_title_apple);
         tvTitleLinux = findViewById(R.id.tv_title_linux);
 
+        tvSrvAirprint = findViewById(R.id.tv_srv_airprint);
+        tvSrvIpp = findViewById(R.id.tv_srv_ipp);
+        tvSrvWebui = findViewById(R.id.tv_srv_webui);
+        tvSrvBonjour = findViewById(R.id.tv_srv_bonjour);
+
         // Theme Switcher Trigger (Clicking logo or theme chip)
         View.OnClickListener themeClickListener = v -> showThemeDialog();
         if (ivDodoLogo != null) ivDodoLogo.setOnClickListener(themeClickListener);
@@ -266,7 +280,7 @@ public class MainActivity extends Activity {
             if (clipboard != null) clipboard.setPrimaryClip(clip);
 
             showToast("Connecting to Web UI...");
-            executor.execute(() -> {
+            actionExecutor.execute(() -> {
                 if (!checkPortOpen(8080, 400)) {
                     ensureStartupScriptExists();
                     runRootCommand("/data/local/bin/start-printserver.sh");
@@ -327,9 +341,6 @@ public class MainActivity extends Activity {
 
         // Register Real-Time Network Observer
         setupNetworkObserver();
-
-        // Initial Refresh
-        refreshStatus();
     }
 
     private void showThemeDialog() {
@@ -477,17 +488,20 @@ public class MainActivity extends Activity {
             networkCallback = new ConnectivityManager.NetworkCallback() {
                 @Override
                 public void onAvailable(Network network) {
-                    mainHandler.post(() -> refreshStatus());
+                    mainHandler.removeCallbacks(networkDebounceRunnable);
+                    mainHandler.postDelayed(networkDebounceRunnable, 600);
                 }
 
                 @Override
                 public void onLost(Network network) {
-                    mainHandler.post(() -> refreshStatus());
+                    mainHandler.removeCallbacks(networkDebounceRunnable);
+                    mainHandler.postDelayed(networkDebounceRunnable, 600);
                 }
 
                 @Override
                 public void onCapabilitiesChanged(Network network, NetworkCapabilities networkCapabilities) {
-                    mainHandler.post(() -> refreshStatus());
+                    mainHandler.removeCallbacks(networkDebounceRunnable);
+                    mainHandler.postDelayed(networkDebounceRunnable, 600);
                 }
             };
 
@@ -529,51 +543,95 @@ public class MainActivity extends Activity {
                 connectivityManager.unregisterNetworkCallback(networkCallback);
             } catch (Exception ignored) {}
         }
-        executor.shutdownNow();
+        statusExecutor.shutdownNow();
+        actionExecutor.shutdownNow();
         try {
-            executor.awaitTermination(2, java.util.concurrent.TimeUnit.SECONDS);
+            statusExecutor.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS);
+            actionExecutor.awaitTermination(1, java.util.concurrent.TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {}
     }
 
     private void refreshStatus() {
-        executor.execute(() -> {
-            final boolean hasRoot = checkRootAccess();
-            final String lanIp = getLocalIpAddress();
-            final String wifiSsid = getConnectedWifiName();
-            final boolean cupsRunning = checkCupsRunning();
-            final String usbPrinter = checkUsbPrinter();
+        if (!isStatusRefreshing.compareAndSet(false, true)) {
+            return;
+        }
+        statusExecutor.execute(() -> {
+            try {
+                final boolean hasRoot = checkRootAccess();
+                final String lanIp = getLocalIpAddress();
+                final String wifiSsid = getConnectedWifiName();
+                final boolean cupsRunning = checkCupsRunning();
+                final String usbPrinter = checkUsbPrinter();
 
-            String spoolText = "Spooler: Queue Idle (0 active jobs)";
-            if (cupsRunning) {
-                String queueOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -o 2>/dev/null || true");
-                if (queueOut != null && !queueOut.trim().isEmpty()) {
-                    int jobCount = queueOut.trim().split("\n").length;
-                    spoolText = "Spooler: " + jobCount + (jobCount == 1 ? " job active" : " jobs active");
+                // Sync Wi-Fi SSID to chroot cache for Python Web UI
+                if (wifiSsid != null && !wifiSsid.isEmpty() && !wifiSsid.equals("Wi-Fi Connected")) {
+                    String cleanSsid = wifiSsid.replace("Wi-Fi: ", "").trim();
+                    if (!cleanSsid.isEmpty()) {
+                        runRootCommand("echo '" + cleanSsid.replace("'", "") + "' > /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs/tmp/wifi_ssid.txt 2>/dev/null || true");
+                    }
                 }
+
+                String spoolText = "Spooler: Queue Idle (0 active jobs)";
+                if (cupsRunning) {
+                    String queueOut = runRootCommand("chroot /data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs /usr/bin/lpstat -o 2>/dev/null || true");
+                    if (queueOut != null && !queueOut.trim().isEmpty()) {
+                        int jobCount = queueOut.trim().split("\n").length;
+                        if (usbPrinter.contains("(USB Disconnected)") || usbPrinter.contains("No USB Printer")) {
+                            spoolText = "Spooler: " + jobCount + (jobCount == 1 ? " job waiting (Printer Offline)" : " jobs waiting (Printer Offline)");
+                        } else {
+                            spoolText = "Spooler: " + jobCount + (jobCount == 1 ? " job active" : " jobs active");
+                        }
+                    }
+                }
+                final String finalSpoolText = spoolText;
+
+                mainHandler.post(() -> {
+                    currentIp = lanIp;
+                    isServerRunning = cupsRunning;
+
+                    tvRootStatus.setText(hasRoot ? "Root Access: Granted (Active)" : "Root Access: Denied (Required)");
+                    tvRootStatus.setTextColor(hasRoot ? currentTheme.statusGreen : 0xFFEF4444);
+
+                    tvIpAddress.setText("IP: " + lanIp + ":631  |  Web: :8080");
+                    tvWifiSsid.setText("Network: " + wifiSsid);
+                    tvPrinterModel.setText("Printer: " + usbPrinter);
+                    if (tvQueueStatus != null) {
+                        tvQueueStatus.setText(finalSpoolText);
+                        if (finalSpoolText.contains("Printer Offline")) {
+                            tvQueueStatus.setTextColor(0xFFF59E0B);
+                        } else {
+                            tvQueueStatus.setTextColor(currentTheme.textSecondary);
+                        }
+                    }
+
+                    if (tvGuideLinux != null) {
+                        String queue = (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<")) ? currentPrinterQueue : "<PRINTER>";
+                        tvGuideLinux.setText("Command: lp -h " + lanIp + ":631 -d " + queue + " document.pdf");
+                    }
+
+                    // Dynamic Service Status Indicators
+                    if (tvSrvAirprint != null) {
+                        tvSrvAirprint.setText(cupsRunning ? "🍎 AirPrint (Active)" : "🍎 AirPrint (Inactive)");
+                        tvSrvAirprint.setTextColor(cupsRunning ? currentTheme.statusGreen : 0xFFEF4444);
+                    }
+                    if (tvSrvIpp != null) {
+                        tvSrvIpp.setText(cupsRunning ? "🖨️ IPP :631 (Active)" : "🖨️ IPP :631 (Inactive)");
+                        tvSrvIpp.setTextColor(cupsRunning ? currentTheme.statusGreen : 0xFFEF4444);
+                    }
+                    if (tvSrvWebui != null) {
+                        tvSrvWebui.setText(cupsRunning ? "🌐 Web UI :8080 (Active)" : "🌐 Web UI :8080 (Inactive)");
+                        tvSrvWebui.setTextColor(cupsRunning ? currentTheme.statusGreen : 0xFFEF4444);
+                    }
+                    if (tvSrvBonjour != null) {
+                        tvSrvBonjour.setText(cupsRunning ? "📡 Bonjour (Active)" : "📡 Bonjour (Inactive)");
+                        tvSrvBonjour.setTextColor(cupsRunning ? currentTheme.statusGreen : 0xFFEF4444);
+                    }
+
+                    updateStatusBadge(cupsRunning);
+                });
+            } finally {
+                isStatusRefreshing.set(false);
             }
-            final String finalSpoolText = spoolText;
-
-            mainHandler.post(() -> {
-                currentIp = lanIp;
-                isServerRunning = cupsRunning;
-
-                tvRootStatus.setText(hasRoot ? "Root Access: Granted (Active)" : "Root Access: Denied (Required)");
-                tvRootStatus.setTextColor(hasRoot ? currentTheme.statusGreen : 0xFFEF4444);
-
-                tvIpAddress.setText("IP: " + lanIp + ":631  |  Web: :8080");
-                tvWifiSsid.setText("Network: " + wifiSsid);
-                tvPrinterModel.setText("Printer: " + usbPrinter);
-                if (tvQueueStatus != null) {
-                    tvQueueStatus.setText(finalSpoolText);
-                }
-
-                if (tvGuideLinux != null) {
-                    String queue = (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<")) ? currentPrinterQueue : "<PRINTER>";
-                    tvGuideLinux.setText("Command: lp -h " + lanIp + ":631 -d " + queue + " document.pdf");
-                }
-
-                updateStatusBadge(cupsRunning);
-            });
         });
     }
 
@@ -619,7 +677,7 @@ public class MainActivity extends Activity {
             }
         });
 
-        executor.execute(() -> {
+        actionExecutor.execute(() -> {
             Log.d("Pinion", "executeRootAction worker starting for: " + action);
             switch (action) {
                 case "START":
@@ -702,6 +760,8 @@ public class MainActivity extends Activity {
                         + "echo \"nameserver 8.8.8.8\" >> $ROOTFS/etc/resolv.conf\n"
                         + "mkdir -p $ROOTFS/run/dbus $ROOTFS/run/cups $ROOTFS/tmp $ROOTFS/data/local/tmp\n"
                         + "chmod 1777 $ROOTFS/tmp $ROOTFS/data/local/tmp\n"
+                        + "WIFI_SSID=$(cmd wifi status 2>/dev/null | grep -o 'connected to \"[^\"]*\"' | head -n1 | cut -d'\"' -f2 || true)\n"
+                        + "if [ -n \"$WIFI_SSID\" ]; then echo \"$WIFI_SSID\" > $ROOTFS/tmp/wifi_ssid.txt; chmod 666 $ROOTFS/tmp/wifi_ssid.txt 2>/dev/null || true; fi\n"
                         + "killall cupsd avahi-daemon dbus-daemon 2>/dev/null\n"
                         + "pkill -f printserver-webui.py 2>/dev/null\n"
                         + "rm -f $ROOTFS/run/dbus/pid $ROOTFS/run/cups/cups.sock $ROOTFS/run/dbus/system_bus_socket $ROOTFS/run/avahi-daemon/pid\n"
@@ -711,11 +771,17 @@ public class MainActivity extends Activity {
                         + "export HOME=/root\n"
                         + "/usr/bin/dbus-daemon --system >/dev/null 2>&1\n"
                         + "avahi-daemon -D >/dev/null 2>&1\n"
+                        + "for i in 1 2 3 4 5 6 7 8 9 10; do\n"
+                        + "    if avahi-daemon -c 2>/dev/null; then break; fi\n"
+                        + "    sleep 0.1\n"
+                        + "done\n"
+                        + "sleep 0.2\n"
                         + "cupsd >/dev/null 2>&1\n"
                         + "\" </dev/null >/dev/null 2>&1\n"
+                        + "chroot $ROOTFS /usr/sbin/cupsd 2>/dev/null || true\n"
                         + "nohup chroot $ROOTFS /bin/bash -c \"\n"
                         + "export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n"
-                        + "python3 /usr/local/bin/printserver-webui.py\n"
+                        + "python3 -u /usr/local/bin/printserver-webui.py\n"
                         + "\" </dev/null >/data/local/tmp/webui.log 2>&1 &\n";
                 fos.write(script.getBytes(StandardCharsets.UTF_8));
             }
@@ -790,7 +856,7 @@ public class MainActivity extends Activity {
         }
 
         if (currentPrinterQueue != null && !currentPrinterQueue.startsWith("<") && !currentPrinterQueue.isEmpty()) {
-            return currentPrinterQueue + (usbAttached ? " (Connected)" : " (Configured)");
+            return currentPrinterQueue + (usbAttached ? " (Connected)" : " (USB Disconnected)");
         }
         return usbAttached ? "USB Printer Connected" : "No USB Printer Detected (Connect OTG Cable)";
     }

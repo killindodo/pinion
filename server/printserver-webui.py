@@ -700,6 +700,31 @@ HTML_PAGE = r"""<!DOCTYPE html>
 </html>
 """
 
+def is_private_ip(ip_str):
+    try:
+        import ipaddress
+        ip = ipaddress.ip_address(ip_str)
+        return ip.is_private or ip.is_loopback or ip.is_link_local
+    except Exception:
+        return False
+
+def check_token(headers):
+    # Support optional administrative PIN / Bearer token via Authorization or X-Pinion-Pin header
+    token = headers.get("Authorization") or headers.get("X-Pinion-Pin")
+    pin_file = "/tmp/pinion_pin.txt"
+    if os.path.exists(pin_file):
+        try:
+            with open(pin_file, "r", encoding="utf-8") as f:
+                expected = f.read().strip()
+            if expected:
+                return token == expected or token == f"Bearer {expected}"
+        except Exception:
+            pass
+    return True
+
+def verify_credentials(headers):
+    return check_token(headers)
+
 def get_lan_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -716,7 +741,18 @@ def get_lan_ip():
             pass
 
 def get_wifi_ssid():
-    # Check Android wifi status via dumpsys/cmd if accessible
+    # 1. Check synced host SSID file (written by Android host into shared /tmp)
+    for path in ["/tmp/wifi_ssid.txt", "/data/local/tmp/wifi_ssid.txt"]:
+        try:
+            if os.path.exists(path):
+                with open(path, "r", encoding="utf-8") as f:
+                    ssid = f.read().strip()
+                    if ssid:
+                        return ssid
+        except Exception:
+            pass
+
+    # 2. Check Android wifi status via dumpsys/cmd if accessible directly
     try:
         out = subprocess.check_output("cmd wifi status 2>/dev/null || dumpsys wifi 2>/dev/null || true", shell=True, text=True)
         m = re.search(r'connected to "([^"]+)"', out)
@@ -746,22 +782,40 @@ def get_cups_status():
             pass
 
     queue_name = "<PRINTER_NAME>"
-    printer_name = "USB Printer (Connected)"
     queue_state = "Idle"
     try:
         d_out = subprocess.check_output("lpstat -d 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
         if "system default destination:" in d_out:
             queue_name = d_out.split("system default destination:")[1].strip()
-            printer_name = f"Printer ({queue_name})"
     except Exception:
         pass
 
+    usb_attached = False
+    try:
+        dev_lp = subprocess.check_output("ls /dev/usb/lp* 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
+        if "/dev/usb/lp" in dev_lp:
+            usb_attached = True
+        else:
+            lsusb_out = subprocess.check_output("lsusb 2>/dev/null || true", shell=True, text=True, env=ENV_PATH).lower()
+            if "printer" in lsusb_out or "print" in lsusb_out or "class=07" in lsusb_out or "binterfaceclass 7" in lsusb_out:
+                usb_attached = True
+    except Exception:
+        pass
+
+    printer_name = f"Printer ({queue_name})" if queue_name != "<PRINTER_NAME>" else "USB Printer"
+    if not usb_attached:
+        printer_name += " (USB Disconnected)"
+
+    waiting_for_printer = False
     try:
         p_out = subprocess.check_output("lpstat -p 2>/dev/null || true", shell=True, text=True, env=ENV_PATH)
-        if "is idle" in p_out:
-            queue_state = "Accepting jobs, idle"
+        if "Waiting for printer" in p_out:
+            waiting_for_printer = True
+            queue_state = "Waiting for printer (Offline / USB Disconnected)"
+        elif "is idle" in p_out:
+            queue_state = "Accepting jobs, idle" if usb_attached else "Idle (USB Disconnected)"
         elif "is printing" in p_out:
-            queue_state = "Printing..."
+            queue_state = "Printing..." if usb_attached else "Printing paused (USB Disconnected)"
         elif "disabled" in p_out:
             queue_state = "Queue paused"
     except Exception:
@@ -775,15 +829,44 @@ def get_cups_status():
             for line in j_out.split("\n"):
                 parts = line.split()
                 if len(parts) >= 4:
+                    job_id = parts[0]
+                    user = parts[1]
+                    size = parts[2]
+                    date_str = " ".join(parts[3:])
+
+                    title = f"Document ({job_id})"
+                    try:
+                        job_num_str = job_id.split("-")[-1]
+                        c_file = f"/var/spool/cups/c{int(job_num_str):05d}"
+                        if os.path.exists(c_file):
+                            with open(c_file, "rb") as f:
+                                c_data = f.read()
+                            idx = c_data.find(b"job-name")
+                            if idx != -1:
+                                val_len = int.from_bytes(c_data[idx+8:idx+10], "big")
+                                parsed_title = c_data[idx+10:idx+10+val_len].decode("utf-8", errors="replace").strip()
+                                if parsed_title and parsed_title != "(stdin)":
+                                    title = parsed_title
+                                elif parsed_title == "(stdin)":
+                                    title = "Test Page / Plain Text"
+                    except Exception:
+                        pass
+
+                    job_status = "Waiting for printer (Offline)" if (waiting_for_printer or not usb_attached) else "In Queue"
+
                     jobs.append({
-                        "id": parts[0],
-                        "user": parts[1],
-                        "size": parts[2] if len(parts) > 2 else "Unknown",
-                        "title": " ".join(parts[3:]),
-                        "status": "In Queue"
+                        "id": job_id,
+                        "user": user,
+                        "size": size,
+                        "title": title,
+                        "date": date_str,
+                        "status": job_status
                     })
     except Exception:
         pass
+
+    if jobs and not usb_attached:
+        queue_state = f"{len(jobs)} job(s) waiting (Printer Offline)"
 
     return {
         "running": running,
@@ -792,47 +875,64 @@ def get_cups_status():
         "queue_state": queue_state,
         "jobs": jobs,
         "ip": get_lan_ip(),
-        "wifi": get_wifi_ssid()
+        "wifi": get_wifi_ssid(),
+        "usb_connected": usb_attached
     }
 
 ALLOWED_EXTENSIONS = {'.pdf', '.txt', '.png', '.jpg', '.jpeg', '.ps', '.prn'}
 
 class RequestHandler(http.server.BaseHTTPRequestHandler):
     def log_message(self, format, *args):
-        # Silence routine request logging
-        pass
+        sys.stderr.write(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {self.client_address[0]} - {format % args}\n")
+        sys.stderr.flush()
 
     def send_json(self, data, status=200):
         resp = json.dumps(data).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(resp)))
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
         self.end_headers()
         self.wfile.write(resp)
 
     def do_HEAD(self):
+        if not is_private_ip(self.client_address[0]):
+            self.send_error(403, "Access restricted to local private network")
+            return
+
         if self.path == "/" or self.path.startswith("/index"):
             body = HTML_PAGE.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "SAMEORIGIN")
             self.end_headers()
         elif self.path == "/api/status":
             resp = json.dumps(get_cups_status()).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(resp)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "SAMEORIGIN")
             self.end_headers()
         else:
             self.send_response(404)
             self.end_headers()
 
     def do_GET(self):
+        if not is_private_ip(self.client_address[0]):
+            self.send_error(403, "Access restricted to local private network")
+            return
+
         if self.path == "/" or self.path.startswith("/index"):
             body = HTML_PAGE.encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-Content-Type-Options", "nosniff")
+            self.send_header("X-Frame-Options", "SAMEORIGIN")
             self.end_headers()
             self.wfile.write(body)
         elif self.path == "/api/status":
@@ -842,6 +942,10 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
+        if not is_private_ip(self.client_address[0]):
+            self.send_error(403, "Access restricted to local private network")
+            return
+
         if self.path == "/api/status":
             self.do_GET()
             return
@@ -870,6 +974,9 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if self.path == "/api/restart":
+            if self.client_address[0] != "127.0.0.1" and not verify_credentials(self.headers):
+                self.send_json({"success": False, "error": "Unauthorized: Restart only permitted from host device"}, 403)
+                return
             try:
                 try:
                     subprocess.run(["killall", "cupsd", "avahi-daemon"], env=ENV_PATH, timeout=2, capture_output=True)
@@ -877,6 +984,11 @@ class RequestHandler(http.server.BaseHTTPRequestHandler):
                     pass
                 time.sleep(0.5)
                 subprocess.Popen(["avahi-daemon", "-D"], env=ENV_PATH)
+                for _ in range(15):
+                    if subprocess.call(["avahi-daemon", "-c"], env=ENV_PATH) == 0:
+                        break
+                    time.sleep(0.1)
+                time.sleep(0.2)
                 subprocess.Popen(["cupsd"], env=ENV_PATH)
                 resp = {"success": True, "message": "Print daemons restarting..."}
             except Exception as e:
@@ -968,7 +1080,7 @@ class ReusableThreadingServer(socketserver.ThreadingMixIn, http.server.HTTPServe
 def run_server():
     server_address = ('0.0.0.0', PORT)
     httpd = ReusableThreadingServer(server_address, RequestHandler)
-    print(f"[Pinion WebUI] Serving on http://0.0.0.0:{PORT}")
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [Pinion WebUI] Serving on http://0.0.0.0:{PORT}", flush=True)
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:

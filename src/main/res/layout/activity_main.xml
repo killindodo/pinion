@@ -431,11 +431,11 @@
                     android:textSize="11sp" />
 
                 <TextView
-                    android:id="@+id/tv_srv_raw"
+                    android:id="@+id/tv_srv_bonjour"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="⚡ RAW :9100 (Active)"
+                    android:text="📡 Bonjour (Active)"
                     android:textColor="@color/status_green"
                     android:textSize="11sp" />
             </LinearLayout>
