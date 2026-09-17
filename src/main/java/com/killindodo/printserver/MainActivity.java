@@ -1,9 +1,19 @@
 package com.killindodo.printserver;
 
 import android.app.Activity;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
 import android.net.Uri;
+import android.net.wifi.WifiInfo;
+import android.net.wifi.WifiManager;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,11 +36,13 @@ public class MainActivity extends Activity {
 
     private TextView tvStatusBadge;
     private TextView tvIpAddress;
+    private TextView tvWifiSsid;
     private TextView tvPrinterModel;
     private TextView tvRootStatus;
     private TextView tvGuideWindows;
     private TextView tvGuideLinux;
     private TextView tvGithubLink;
+    private Button btnCopyUrl;
     private Button btnOpenWebUi;
     private Button btnStart;
     private Button btnStop;
@@ -39,7 +51,11 @@ public class MainActivity extends Activity {
 
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+
     private String currentIp = "127.0.0.1";
+    private String currentPrinterQueue = "HP_LaserJet_M1005";
     private boolean isServerRunning = false;
 
     @Override
@@ -49,11 +65,13 @@ public class MainActivity extends Activity {
 
         tvStatusBadge = findViewById(R.id.tv_status_badge);
         tvIpAddress = findViewById(R.id.tv_ip_address);
+        tvWifiSsid = findViewById(R.id.tv_wifi_ssid);
         tvPrinterModel = findViewById(R.id.tv_printer_model);
         tvRootStatus = findViewById(R.id.tv_root_status);
         tvGuideWindows = findViewById(R.id.tv_guide_windows);
         tvGuideLinux = findViewById(R.id.tv_guide_linux);
         tvGithubLink = findViewById(R.id.tv_github_link);
+        btnCopyUrl = findViewById(R.id.btn_copy_url);
         btnOpenWebUi = findViewById(R.id.btn_open_webui);
         btnStart = findViewById(R.id.btn_start);
         btnStop = findViewById(R.id.btn_stop);
@@ -72,14 +90,52 @@ public class MainActivity extends Activity {
             startActivity(browserIntent);
         });
 
-        // Controls
+        // Copy Printer URL to Clipboard
+        btnCopyUrl.setOnClickListener(v -> {
+            String printerUrl = "http://" + currentIp + ":631/printers/" + currentPrinterQueue;
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            ClipData clip = ClipData.newPlainText("Printer URL", printerUrl);
+            if (clipboard != null) {
+                clipboard.setPrimaryClip(clip);
+                Toast.makeText(MainActivity.this, "Copied: " + printerUrl, Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        // Server Controls
         btnStart.setOnClickListener(v -> executeRootAction("START"));
         btnStop.setOnClickListener(v -> executeRootAction("STOP"));
         btnRestart.setOnClickListener(v -> executeRootAction("RESTART"));
         btnTestPage.setOnClickListener(v -> executeRootAction("TEST_PAGE"));
 
-        // Refresh Status
+        // Register Real-Time Network Observer
+        setupNetworkObserver();
+
+        // Initial Refresh
         refreshStatus();
+    }
+
+    private void setupNetworkObserver() {
+        try {
+            connectivityManager = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            if (connectivityManager != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                NetworkRequest request = new NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .build();
+
+                networkCallback = new ConnectivityManager.NetworkCallback() {
+                    @Override
+                    public void onAvailable(Network network) {
+                        mainHandler.post(() -> refreshStatus());
+                    }
+
+                    @Override
+                    public void onLost(Network network) {
+                        mainHandler.post(() -> refreshStatus());
+                    }
+                };
+                connectivityManager.registerNetworkCallback(request, networkCallback);
+            }
+        } catch (Exception ignored) {}
     }
 
     @Override
@@ -88,9 +144,20 @@ public class MainActivity extends Activity {
         refreshStatus();
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        try {
+            if (connectivityManager != null && networkCallback != null) {
+                connectivityManager.unregisterNetworkCallback(networkCallback);
+            }
+        } catch (Exception ignored) {}
+    }
+
     private void refreshStatus() {
         executor.execute(() -> {
             currentIp = getWifiIpAddress();
+            String networkSsid = getConnectedWifiName();
             boolean rootOk = checkRootAccess();
             boolean running = isCupsRunning();
             String printerInfo = detectPrinter();
@@ -98,6 +165,7 @@ public class MainActivity extends Activity {
             mainHandler.post(() -> {
                 tvRootStatus.setText(rootOk ? "Root Access: Granted (Active)" : "Root Access: NOT Detected (su required)");
                 tvIpAddress.setText("IP: " + currentIp + ":631");
+                tvWifiSsid.setText("Network: " + networkSsid);
                 tvPrinterModel.setText("Printer: " + printerInfo);
 
                 isServerRunning = running;
@@ -112,8 +180,8 @@ public class MainActivity extends Activity {
                 }
 
                 // Update dynamic guides
-                tvGuideWindows.setText("Settings > Bluetooth & devices > Printers & scanners > Add printer. Or enter IPP URL: http://" + currentIp + ":631/printers/HP_LaserJet_M1005");
-                tvGuideLinux.setText("Command: lp -h " + currentIp + ":631 -d HP_LaserJet_M1005 document.pdf");
+                tvGuideWindows.setText("Settings > Bluetooth & devices > Printers & scanners > Add printer. Or click 'Add manually' > Select a shared printer by name > Paste URL: http://" + currentIp + ":631/printers/" + currentPrinterQueue);
+                tvGuideLinux.setText("Command: lp -h " + currentIp + ":631 -d " + currentPrinterQueue + " document.pdf");
             });
         });
     }
@@ -123,13 +191,16 @@ public class MainActivity extends Activity {
         executor.execute(() -> {
             try {
                 if ("START".equals(action)) {
+                    ensureStartupScriptExists();
                     runRootCommand("/data/local/bin/start-printserver.sh");
                 } else if ("STOP".equals(action)) {
                     runRootCommand("killall cupsd avahi-daemon dbus-daemon 2>/dev/null || true");
                 } else if ("RESTART".equals(action)) {
-                    runRootCommand("killall cupsd avahi-daemon dbus-daemon 2>/dev/null || true; sleep 1; /data/local/bin/start-printserver.sh");
+                    runRootCommand("killall cupsd avahi-daemon dbus-daemon 2>/dev/null || true; sleep 1");
+                    ensureStartupScriptExists();
+                    runRootCommand("/data/local/bin/start-printserver.sh");
                 } else if ("TEST_PAGE".equals(action)) {
-                    runRootCommand("ROOTFS=/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs; chroot $ROOTFS /bin/bash -c 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; export TMPDIR=/tmp; echo -e \"=== KILLINDODO PRINT TEST ===\\nDate: $(date)\\nStatus: Operational\" | lp -d HP_LaserJet_M1005'");
+                    runRootCommand("ROOTFS=/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs; chroot $ROOTFS /bin/bash -c 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; export TMPDIR=/tmp; echo -e \"=== KILLINDODO PRINT TEST ===\\nDate: $(date)\\nStatus: Operational\" | lp -d " + currentPrinterQueue + "'");
                 }
             } catch (Exception e) {
                 e.printStackTrace();
@@ -144,6 +215,23 @@ public class MainActivity extends Activity {
         });
     }
 
+    private void ensureStartupScriptExists() {
+        // Universal self-healing: ensures USB permissions & mountpoints are always present
+        String cmd = "chmod -R 666 /dev/bus/usb 2>/dev/null; chmod -R 666 /dev/usb 2>/dev/null; "
+                   + "if [ ! -f /data/local/bin/start-printserver.sh ]; then "
+                   + "mkdir -p /data/local/bin; "
+                   + "echo '#!/system/bin/sh' > /data/local/bin/start-printserver.sh; "
+                   + "echo 'ROOTFS=/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs' >> /data/local/bin/start-printserver.sh; "
+                   + "echo 'mountpoint -q $ROOTFS/proc || mount -t proc proc $ROOTFS/proc' >> /data/local/bin/start-printserver.sh; "
+                   + "echo 'mountpoint -q $ROOTFS/sys || mount -t sysfs sysfs $ROOTFS/sys' >> /data/local/bin/start-printserver.sh; "
+                   + "echo 'mountpoint -q $ROOTFS/dev || mount -o bind /dev $ROOTFS/dev' >> /data/local/bin/start-printserver.sh; "
+                   + "echo 'chmod -R 666 /dev/bus/usb' >> /data/local/bin/start-printserver.sh; "
+                   + "echo 'chroot $ROOTFS /bin/bash -c \"export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; export TMPDIR=/tmp; service dbus restart; avahi-daemon -D 2>/dev/null; cupsd\"' >> /data/local/bin/start-printserver.sh; "
+                   + "chmod +x /data/local/bin/start-printserver.sh; "
+                   + "fi";
+        runRootCommand(cmd);
+    }
+
     private boolean checkRootAccess() {
         String result = runRootCommand("id");
         return result != null && result.contains("uid=0");
@@ -155,9 +243,11 @@ public class MainActivity extends Activity {
     }
 
     private String detectPrinter() {
+        // Run universal CUPS usb backend detection
         String result = runRootCommand("ROOTFS=/data/data/com.termux/files/usr/var/lib/proot-distro/containers/debian/rootfs; chroot $ROOTFS /bin/bash -c 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; /usr/lib/cups/backend/usb 2>/dev/null || true'");
         if (result != null && result.contains("usb://")) {
             if (result.contains("M1005")) {
+                currentPrinterQueue = "HP_LaserJet_M1005";
                 return "HP LaserJet M1005 MFP (USB Online)";
             }
             try {
@@ -170,11 +260,16 @@ public class MainActivity extends Activity {
             return "USB Printer Detected (Online)";
         }
 
-        String lsusb = runRootCommand("/system/bin/lsusb || true");
-        if (lsusb != null && lsusb.contains("03f0:3b17")) {
+        // Fallback check on Linux kernel USB devices
+        String lsusb = runRootCommand("lsusb 2>/dev/null || /system/bin/lsusb 2>/dev/null || true");
+        if (lsusb != null && (lsusb.contains("03f0:3b17") || lsusb.toLowerCase().contains("m1005"))) {
+            currentPrinterQueue = "HP_LaserJet_M1005";
             return "HP LaserJet M1005 MFP (USB Online)";
+        } else if (lsusb != null && lsusb.contains("03f0:")) {
+            return "HP Printer Connected (USB Online)";
         }
-        return "No USB Printer Detected (Check OTG Cable)";
+
+        return "No USB Printer Detected (Connect OTG Cable)";
     }
 
     private String runRootCommand(String command) {
@@ -215,5 +310,24 @@ public class MainActivity extends Activity {
             }
         } catch (Exception ignored) {}
         return "127.0.0.1";
+    }
+
+    private String getConnectedWifiName() {
+        try {
+            WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+            if (wifiManager != null) {
+                WifiInfo info = wifiManager.getConnectionInfo();
+                if (info != null && info.getSSID() != null) {
+                    String ssid = info.getSSID();
+                    if (ssid.startsWith("\"") && ssid.endsWith("\"") && ssid.length() > 2) {
+                        ssid = ssid.substring(1, ssid.length() - 1);
+                    }
+                    if (!ssid.equals("<unknown ssid>")) {
+                        return "Wi-Fi: " + ssid;
+                    }
+                }
+            }
+        } catch (Exception ignored) {}
+        return "Wi-Fi Connected";
     }
 }

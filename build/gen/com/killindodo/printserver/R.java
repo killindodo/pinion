@@ -37,18 +37,20 @@ public final class R {
     public static final int ic_printer=0x7f020007;
   }
   public static final class id {
-    public static final int btn_open_webui=0x7f030000;
-    public static final int btn_restart=0x7f030001;
-    public static final int btn_start=0x7f030002;
-    public static final int btn_stop=0x7f030003;
-    public static final int btn_test_page=0x7f030004;
-    public static final int tv_github_link=0x7f030005;
-    public static final int tv_guide_linux=0x7f030006;
-    public static final int tv_guide_windows=0x7f030007;
-    public static final int tv_ip_address=0x7f030008;
-    public static final int tv_printer_model=0x7f030009;
-    public static final int tv_root_status=0x7f03000a;
-    public static final int tv_status_badge=0x7f03000b;
+    public static final int btn_copy_url=0x7f030000;
+    public static final int btn_open_webui=0x7f030001;
+    public static final int btn_restart=0x7f030002;
+    public static final int btn_start=0x7f030003;
+    public static final int btn_stop=0x7f030004;
+    public static final int btn_test_page=0x7f030005;
+    public static final int tv_github_link=0x7f030006;
+    public static final int tv_guide_linux=0x7f030007;
+    public static final int tv_guide_windows=0x7f030008;
+    public static final int tv_ip_address=0x7f030009;
+    public static final int tv_printer_model=0x7f03000a;
+    public static final int tv_root_status=0x7f03000b;
+    public static final int tv_status_badge=0x7f03000c;
+    public static final int tv_wifi_ssid=0x7f03000d;
   }
   public static final class layout {
     public static final int activity_main=0x7f040000;

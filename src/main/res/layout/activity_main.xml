@@ -9,7 +9,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp">
+        android:padding="18dp">
 
         <!-- App Header -->
         <LinearLayout
@@ -17,7 +17,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal"
             android:gravity="center_vertical"
-            android:layout_marginBottom="20dp">
+            android:layout_marginBottom="18dp">
 
             <ImageView
                 android:layout_width="44dp"
@@ -42,7 +42,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Wireless Print Server for Android"
+                    android:text="Universal Wireless Print Server"
                     android:textColor="@color/text_muted"
                     android:textSize="13sp" />
             </LinearLayout>
@@ -67,7 +67,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="SERVER STATUS"
+                    android:text="LIVE STATUS"
                     android:textColor="@color/text_muted"
                     android:textSize="11sp"
                     android:letterSpacing="0.08"
@@ -90,40 +90,70 @@
                 android:id="@+id/tv_ip_address"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="IP: 192.168.1.77:631"
+                android:text="IP: Detecting..."
                 android:textColor="@color/primary"
                 android:textSize="18sp"
                 android:textStyle="bold"
                 android:layout_marginTop="10dp" />
 
             <TextView
+                android:id="@+id/tv_wifi_ssid"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Network: Wi-Fi Connected"
+                android:textColor="@color/text_muted"
+                android:textSize="12sp"
+                android:layout_marginTop="3dp" />
+
+            <TextView
                 android:id="@+id/tv_printer_model"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Printer: HP LaserJet M1005 MFP"
+                android:text="Printer: Detecting USB..."
                 android:textColor="@color/text_secondary"
                 android:textSize="13sp"
-                android:layout_marginTop="4dp" />
+                android:layout_marginTop="6dp" />
 
             <TextView
                 android:id="@+id/tv_root_status"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Root Access: Granted (Magisk/KernelSU)"
+                android:text="Root Access: Checking..."
                 android:textColor="@color/text_muted"
                 android:textSize="12sp"
-                android:layout_marginTop="4dp" />
+                android:layout_marginTop="3dp" />
 
-            <Button
-                android:id="@+id/btn_open_webui"
+            <!-- Action Buttons inside Status Card -->
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="42dp"
-                android:layout_marginTop="12dp"
-                android:background="@drawable/btn_action_style"
-                android:text="Open CUPS Web Dashboard"
-                android:textColor="@color/text_primary"
-                android:textSize="13sp"
-                android:textStyle="bold" />
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:layout_marginTop="14dp">
+
+                <Button
+                    android:id="@+id/btn_copy_url"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:layout_marginEnd="5dp"
+                    android:background="@drawable/btn_action_style"
+                    android:text="📋 Copy Printer URL"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+
+                <Button
+                    android:id="@+id/btn_open_webui"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="5dp"
+                    android:background="@drawable/btn_action_style"
+                    android:text="🌐 Web Dashboard"
+                    android:textColor="@color/text_primary"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Controls Card -->
@@ -157,7 +187,7 @@
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
                     android:background="@drawable/btn_start_style"
-                    android:text="Start"
+                    android:text="▶ Start"
                     android:textColor="@color/text_primary"
                     android:textStyle="bold" />
 
@@ -168,7 +198,7 @@
                     android:layout_weight="1"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/btn_stop_style"
-                    android:text="Stop"
+                    android:text="⏹ Stop"
                     android:textColor="@color/text_primary"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -186,7 +216,7 @@
                     android:layout_weight="1"
                     android:layout_marginEnd="6dp"
                     android:background="@drawable/btn_action_style"
-                    android:text="Restart"
+                    android:text="🔄 Restart"
                     android:textColor="@color/text_primary"
                     android:textStyle="bold" />
 
@@ -197,13 +227,13 @@
                     android:layout_weight="1"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/btn_start_style"
-                    android:text="Test Print"
+                    android:text="🖨️ Test Print"
                     android:textColor="@color/text_primary"
                     android:textStyle="bold" />
             </LinearLayout>
         </LinearLayout>
 
-        <!-- Usage Instructions Card -->
+        <!-- Client Usage Guide Card -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -215,7 +245,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="CLIENT USAGE GUIDE"
+                android:text="HOW TO CONNECT (NO PASSWORD REQUIRED)"
                 android:textColor="@color/text_muted"
                 android:textSize="11sp"
                 android:letterSpacing="0.08"
@@ -234,7 +264,7 @@
                 android:id="@+id/tv_guide_windows"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Settings &gt; Bluetooth &amp; devices &gt; Printers &amp; scanners &gt; Add printer. The printer will appear automatically via mDNS or enter IPP URL: http://&lt;PHONE_IP&gt;:631/printers/HP_LaserJet_M1005"
+                android:text="Settings &gt; Bluetooth &amp; devices &gt; Printers &amp; scanners &gt; Add printer. Or click 'Add manually' &gt; Select a shared printer by name &gt; Paste the copied Printer URL."
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"
@@ -251,7 +281,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Open any file/photo &gt; Tap Share or Print &gt; Select 'HP LaserJet M1005' directly from the printer list (discovered via Default Print Service / Mopria)."
+                android:text="Open any file/photo &gt; Tap Share &gt; Print &gt; Select 'HP LaserJet M1005' directly from the printer list (discovered automatically via Default Print Service / Mopria)."
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"
@@ -268,7 +298,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Native AirPrint zero-config. On iPhone/iPad/Mac, tap Print and 'HP LaserJet M1005' will show up instantly with no drivers required."
+                android:text="Zero configuration required! On iPhone, iPad, or Mac, open any document, tap Share &gt; Print. The printer will appear instantly under AirPrint."
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp"
@@ -286,7 +316,7 @@
                 android:id="@+id/tv_guide_linux"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Print from CLI: lp -h &lt;PHONE_IP&gt;:631 -d HP_LaserJet_M1005 document.pdf, or add via system CUPS settings."
+                android:text="Command: lp -h &lt;PHONE_IP&gt;:631 -d HP_LaserJet_M1005 document.pdf"
                 android:textColor="@color/text_secondary"
                 android:textSize="12sp"
                 android:layout_marginTop="2dp" />
