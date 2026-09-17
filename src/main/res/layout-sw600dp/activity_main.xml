@@ -13,13 +13,16 @@
         android:layout_gravity="center_horizontal"
         android:maxWidth="1100dp"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:paddingStart="20dp"
+        android:paddingEnd="20dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="16dp">
 
-        <!-- Tablet Header with Dodo Logo & Theme Selector -->
+        <!-- Tablet Header (Compact & Edge-Optimized) -->
         <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp">
+            android:layout_marginBottom="14dp">
 
             <LinearLayout
                 android:id="@+id/header_branding"
@@ -30,48 +33,48 @@
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <!-- Dodo Bird Logo -->
+                <!-- Pinion Logo -->
                 <FrameLayout
                     android:id="@+id/frame_dodo_logo"
-                    android:layout_width="54dp"
-                    android:layout_height="54dp"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
                     android:background="@drawable/logo_bg"
-                    android:padding="7dp">
+                    android:padding="6dp">
 
                     <ImageView
                         android:id="@+id/iv_dodo_logo"
                         android:layout_width="match_parent"
                         android:layout_height="match_parent"
-                        android:contentDescription="Dodo-RF Logo"
-                        android:src="@drawable/ic_dodo" />
+                        android:contentDescription="Pinion Logo"
+                        android:src="@drawable/ic_pinion" />
                 </FrameLayout>
 
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
+                    android:layout_marginStart="14dp"
                     android:orientation="vertical">
 
                     <TextView
                         android:id="@+id/tv_app_title"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="PrintServer Root"
+                        android:text="Pinion"
                         android:textColor="@color/text_primary"
-                        android:textSize="24sp"
+                        android:textSize="22sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tv_app_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Universal Wireless Print Server Console &#8226; Tablet Edition"
+                        android:text="Universal Wireless Print Engine &#8226; Tablet Edition"
                         android:textColor="@color/text_muted"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
 
-            <!-- Dodo Theme Selector Chip -->
+            <!-- Theme Selector Chip -->
             <LinearLayout
                 android:id="@+id/btn_theme_selector"
                 android:layout_width="wrap_content"
@@ -83,23 +86,23 @@
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="horizontal"
-                android:paddingHorizontal="16dp"
-                android:paddingVertical="9dp">
+                android:paddingHorizontal="14dp"
+                android:paddingVertical="7dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="🎨"
-                    android:textSize="15sp" />
+                    android:textSize="14sp" />
 
                 <TextView
                     android:id="@+id/tv_theme_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="Theme"
+                    android:layout_marginStart="6dp"
+                    android:text="Matrix"
                     android:textColor="@color/primary"
-                    android:textSize="13sp"
+                    android:textSize="12sp"
                     android:textStyle="bold" />
             </LinearLayout>
         </RelativeLayout>
@@ -114,7 +117,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="12dp"
+                android:layout_marginEnd="10dp"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
@@ -123,10 +126,10 @@
                     android:id="@+id/card_status"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="12dp"
                     android:background="@drawable/card_bg"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -142,7 +145,7 @@
                             android:letterSpacing="0.08"
                             android:text="LIVE STATUS"
                             android:textColor="@color/text_muted"
-                            android:textSize="12sp"
+                            android:textSize="11sp"
                             android:textStyle="bold" />
 
                         <TextView
@@ -150,11 +153,11 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:background="@drawable/badge_running"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="5dp"
+                            android:paddingHorizontal="10dp"
+                            android:paddingVertical="4dp"
                             android:text="RUNNING"
                             android:textColor="@color/status_green"
-                            android:textSize="12sp"
+                            android:textSize="11sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
@@ -162,73 +165,73 @@
                         android:id="@+id/tv_ip_address"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="8dp"
                         android:text="IP: Detecting..."
                         android:textColor="@color/primary"
-                        android:textSize="19sp"
+                        android:textSize="17sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tv_wifi_ssid"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="3dp"
                         android:text="Network: Wi-Fi Connected"
                         android:textColor="@color/text_muted"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <TextView
                         android:id="@+id/tv_printer_model"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="8dp"
+                        android:layout_marginTop="6dp"
                         android:text="Printer: Detecting USB..."
                         android:textColor="@color/text_secondary"
-                        android:textSize="14sp" />
+                        android:textSize="13sp" />
 
                     <TextView
                         android:id="@+id/tv_root_status"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="3dp"
                         android:text="Root Access: Checking..."
                         android:textColor="@color/text_muted"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
+                        android:layout_marginTop="12dp"
                         android:orientation="horizontal">
 
                         <Button
                             android:id="@+id/btn_copy_url"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="6dp"
+                            android:layout_marginEnd="5dp"
                             android:layout_weight="1"
                             android:background="@drawable/btn_action_style"
-                            android:minHeight="48dp"
-                            android:paddingHorizontal="10dp"
-                            android:paddingVertical="10dp"
+                            android:minHeight="44dp"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="8dp"
                             android:text="📋 Copy URL"
                             android:textColor="@color/text_primary"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
 
                         <Button
                             android:id="@+id/btn_open_webui"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="6dp"
+                            android:layout_marginStart="5dp"
                             android:layout_weight="1"
                             android:background="@drawable/btn_action_style"
-                            android:minHeight="48dp"
-                            android:paddingHorizontal="10dp"
-                            android:paddingVertical="10dp"
+                            android:minHeight="44dp"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="8dp"
                             android:text="🌐 Web Dashboard"
                             android:textColor="@color/text_primary"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
@@ -238,20 +241,20 @@
                     android:id="@+id/card_controls"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
+                    android:layout_marginBottom="12dp"
                     android:background="@drawable/card_bg"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:id="@+id/label_controls"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="14dp"
+                        android:layout_marginBottom="10dp"
                         android:letterSpacing="0.08"
                         android:text="SERVER CONTROLS"
                         android:textColor="@color/text_muted"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <LinearLayout
@@ -263,63 +266,63 @@
                             android:id="@+id/btn_start"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginEnd="6dp"
                             android:layout_weight="1"
                             android:background="@drawable/btn_start_style"
-                            android:minHeight="48dp"
-                            android:paddingVertical="10dp"
+                            android:minHeight="44dp"
+                            android:paddingVertical="8dp"
                             android:text="▶ Start Server"
                             android:textColor="@color/text_primary"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
 
                         <Button
                             android:id="@+id/btn_stop"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
+                            android:layout_marginStart="6dp"
                             android:layout_weight="1"
                             android:background="@drawable/btn_stop_style"
-                            android:minHeight="48dp"
-                            android:paddingVertical="10dp"
+                            android:minHeight="44dp"
+                            android:paddingVertical="8dp"
                             android:text="⏹ Stop Server"
                             android:textColor="@color/text_primary"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
                     </LinearLayout>
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="10dp"
                         android:orientation="horizontal">
 
                         <Button
                             android:id="@+id/btn_restart"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginEnd="8dp"
+                            android:layout_marginEnd="6dp"
                             android:layout_weight="1"
                             android:background="@drawable/btn_action_style"
-                            android:minHeight="48dp"
-                            android:paddingVertical="10dp"
+                            android:minHeight="44dp"
+                            android:paddingVertical="8dp"
                             android:text="🔄 Restart"
                             android:textColor="@color/text_primary"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
 
                         <Button
                             android:id="@+id/btn_test_page"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:layout_marginStart="8dp"
+                            android:layout_marginStart="6dp"
                             android:layout_weight="1"
                             android:background="@drawable/btn_start_style"
-                            android:minHeight="48dp"
-                            android:paddingVertical="10dp"
+                            android:minHeight="44dp"
+                            android:paddingVertical="8dp"
                             android:text="🖨️ Test Print"
                             android:textColor="@color/text_primary"
-                            android:textSize="13sp"
+                            android:textSize="12sp"
                             android:textStyle="bold" />
                     </LinearLayout>
                 </LinearLayout>
@@ -331,26 +334,26 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/card_bg"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:id="@+id/label_webui"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginBottom="6dp"
                         android:letterSpacing="0.08"
-                        android:text="🌐 DODO WEB DASHBOARD (:8080)"
+                        android:text="🌐 PINION WEB DASHBOARD (:8080)"
                         android:textColor="@color/text_muted"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tv_webui_desc"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Open http://&lt;IP&gt;:8080 in any browser on your network. Drag-and-drop PDF and images directly to print without installing any printer drivers!"
+                        android:text="Open http://&lt;IP&gt;:8080 in any browser on your network to drag-and-drop print PDF/images directly without installing any printer drivers!"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
                 </LinearLayout>
 
             </LinearLayout>
@@ -359,7 +362,7 @@
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
                 android:orientation="vertical">
 
@@ -369,17 +372,17 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/card_bg"
                     android:orientation="vertical"
-                    android:padding="20dp">
+                    android:padding="16dp">
 
                     <TextView
                         android:id="@+id/label_guide"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
+                        android:layout_marginBottom="12dp"
                         android:letterSpacing="0.08"
                         android:text="HOW TO CONNECT (NO PASSWORD REQUIRED)"
                         android:textColor="@color/text_muted"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
                         android:textStyle="bold" />
 
                     <!-- Windows -->
@@ -389,18 +392,18 @@
                         android:layout_height="wrap_content"
                         android:text="🪟 Windows 10 / 11"
                         android:textColor="@color/primary"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tv_guide_windows"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="14dp"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="10dp"
+                        android:layout_marginTop="2dp"
                         android:text="Settings &gt; Bluetooth &amp; devices &gt; Printers &amp; scanners &gt; Add printer. Or click 'Add manually' &gt; Select a shared printer by name &gt; Paste the copied Printer URL."
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <!-- Android -->
                     <TextView
@@ -409,18 +412,18 @@
                         android:layout_height="wrap_content"
                         android:text="📱 Android"
                         android:textColor="@color/primary"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tv_guide_android"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="14dp"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="10dp"
+                        android:layout_marginTop="2dp"
                         android:text="Open any file/photo &gt; Tap Share &gt; Print &gt; Select 'HP LaserJet M1005' directly from the printer list (discovered automatically via Default Print Service / Mopria)."
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <!-- iOS / Mac -->
                     <TextView
@@ -429,18 +432,18 @@
                         android:layout_height="wrap_content"
                         android:text="🍎 iOS / macOS (AirPrint)"
                         android:textColor="@color/primary"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tv_guide_apple"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginBottom="14dp"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginBottom="10dp"
+                        android:layout_marginTop="2dp"
                         android:text="Zero configuration required! On iPhone, iPad, or Mac, open any document, tap Share &gt; Print. The printer will appear instantly under AirPrint via Avahi mDNS."
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
 
                     <!-- Linux -->
                     <TextView
@@ -449,49 +452,48 @@
                         android:layout_height="wrap_content"
                         android:text="🐧 Linux"
                         android:textColor="@color/primary"
-                        android:textSize="14sp"
+                        android:textSize="13sp"
                         android:textStyle="bold" />
 
                     <TextView
                         android:id="@+id/tv_guide_linux"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
+                        android:layout_marginTop="2dp"
                         android:text="Command: lp -h &lt;PHONE_IP&gt;:631 -d HP_LaserJet_M1005 document.pdf"
                         android:textColor="@color/text_secondary"
-                        android:textSize="13sp" />
+                        android:textSize="12sp" />
                 </LinearLayout>
 
             </LinearLayout>
 
         </LinearLayout>
 
-        <!-- Branding & Credits Footer -->
+        <!-- Compact Single-Line Footer -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:orientation="vertical"
-            android:paddingVertical="18dp">
+            android:orientation="horizontal"
+            android:paddingTop="8dp"
+            android:paddingBottom="6dp">
 
             <TextView
                 android:id="@+id/tv_footer_branding"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Made with love by killindodo"
+                android:text="🪶 Pinion &#8226; Made with love by killindodo &#8226; "
                 android:textColor="@color/accent"
-                android:textSize="15sp"
+                android:textSize="13sp"
                 android:textStyle="bold" />
 
             <TextView
                 android:id="@+id/tv_github_link"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:padding="6dp"
-                android:text="www.github.com/killindodo"
+                android:text="github.com/killindodo"
                 android:textColor="@color/primary"
-                android:textSize="14sp" />
+                android:textSize="13sp" />
         </LinearLayout>
 
     </LinearLayout>

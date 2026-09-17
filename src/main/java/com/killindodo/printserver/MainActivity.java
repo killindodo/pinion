@@ -191,10 +191,36 @@ public class MainActivity extends Activity {
         if (ivDodoLogo != null) ivDodoLogo.setOnClickListener(themeClickListener);
         if (btnThemeSelector != null) btnThemeSelector.setOnClickListener(themeClickListener);
 
-        // Window System Bar Flags
+        // Window Setup: Edge-to-Edge & Display Cutout
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            getWindow().getAttributes().layoutInDisplayCutoutMode =
+                    android.view.WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
+        }
+
+        int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
+        int statusBarHeight = resourceId > 0 ? getResources().getDimensionPixelSize(resourceId) : dpToPx(28);
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            android.view.Window window = getWindow();
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
+            window.getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            );
+            window.setStatusBarColor(android.graphics.Color.TRANSPARENT);
+            window.setNavigationBarColor(currentTheme.bg);
+        }
+
+        // Apply snug top padding (exact status bar height + 4dp) to eliminate all wasted top void
+        View rootContainer = findViewById(R.id.root_container);
+        if (rootContainer != null) {
+            rootContainer.setPadding(
+                    dpToPx(14),
+                    statusBarHeight + dpToPx(4),
+                    dpToPx(14),
+                    dpToPx(8)
+            );
         }
 
         // Apply current theme
@@ -253,7 +279,7 @@ public class MainActivity extends Activity {
         }
 
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("🦤 Select Dodo Theme");
+        builder.setTitle("🪶 Select Pinion Theme");
         builder.setSingleChoiceItems(names, selectedIdx, (dialog, which) -> {
             currentTheme = THEMES[which];
             getSharedPreferences("dodo_prefs", MODE_PRIVATE)
@@ -274,16 +300,14 @@ public class MainActivity extends Activity {
             rootScroll.setBackgroundColor(t.bg);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            getWindow().setStatusBarColor(t.bg);
+            getWindow().setStatusBarColor(android.graphics.Color.TRANSPARENT);
             getWindow().setNavigationBarColor(t.bg);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             View decor = getWindow().getDecorView();
-            int flags = decor.getSystemUiVisibility();
+            int flags = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
             if (t.isLight) {
                 flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-            } else {
-                flags &= ~View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
             }
             decor.setSystemUiVisibility(flags);
         }

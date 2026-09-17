@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- Pinion Outer Gear Cog Teeth (Mechanical Drive) -->
+    <path
+        android:fillColor="@color/primary"
+        android:pathData="M 45,4 L 55,4 L 54,12 C 58,13 62,15 65,17 L 72,12 L 79,19 L 74,26 C 76,29 78,33 79,37 L 87,36 L 87,46 L 79,47 C 78,51 76,55 74,58 L 79,65 L 72,72 L 65,67 C 62,69 58,71 54,72 L 55,80 L 45,80 L 46,72 C 42,71 38,69 35,67 L 28,72 L 21,65 L 26,58 C 24,55 22,51 21,47 L 13,46 L 13,36 L 21,37 C 22,33 24,29 26,26 L 21,19 L 28,12 L 35,17 C 38,15 42,13 46,12 Z
+                          M 50,22 C 37,22 26,33 26,46 C 26,59 37,70 50,70 C 63,70 74,59 74,46 C 74,33 63,22 50,22 Z" />
+
+    <!-- Inner Gear Hub -->
+    <path
+        android:fillColor="@color/card_border"
+        android:pathData="M 50,28 C 40,28 32,36 32,46 C 32,56 40,64 50,64 C 60,64 68,56 68,46 C 68,36 60,28 50,28 Z" />
+
+    <!-- Aerodynamic Pinion Flight Feather / Quill (Spooling & Ink) -->
+    <path
+        android:fillColor="@color/accent"
+        android:pathData="M 76,14
+                          C 64,16 52,24 43,35
+                          C 36,44 32,56 22,78
+                          C 26,76 34,70 40,62
+                          C 43,58 46,51 49,45
+                          C 53,37 60,28 72,21
+                          C 76,18 76,15 76,14 Z" />
+
+    <!-- Feather Central Spine / Quill Shaft -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M 76,14 L 18,84" />
+
+    <!-- Feather Accent Quill Vanes -->
+    <path
+        android:fillColor="@color/primary"
+        android:pathData="M 68,22 C 60,28 55,34 52,42 C 58,40 66,33 70,25 Z
+                          M 58,34 C 50,42 47,48 44,56 C 50,53 56,46 60,38 Z" />
+</vector>

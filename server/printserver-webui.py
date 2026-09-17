@@ -24,7 +24,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Dodo PrintServer Dashboard</title>
+<title>Pinion Dashboard</title>
 <style>
   :root {
     --bg: #000000;
@@ -356,9 +356,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
 <div class="header">
   <div class="header-left">
-    <div class="dodo-logo" title="Dodo-RF" onclick="cycleTheme()">🦤</div>
+    <div class="dodo-logo" title="Pinion" onclick="cycleTheme()">⚙️🪶</div>
     <div class="header-title">
-      <h1>&gt; Dodo PrintServer</h1>
+      <h1>&gt; Pinion</h1>
       <p>Universal Wireless CUPS Print Server Dashboard</p>
     </div>
   </div>
