@@ -2,6 +2,7 @@ build/
 *.png
 !docs/screenshots/*.png
 !art/*.png
+!src/main/res/**/*.png
 __pycache__/
 .DS_Store
 *.pyc
