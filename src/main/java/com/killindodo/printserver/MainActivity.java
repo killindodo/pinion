@@ -61,6 +61,10 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            getWindow().setStatusBarColor(getColor(R.color.bg_dark));
+            getWindow().setNavigationBarColor(getColor(R.color.bg_dark));
+        }
         setContentView(R.layout.activity_main);
 
         tvStatusBadge = findViewById(R.id.tv_status_badge);
@@ -313,6 +317,27 @@ public class MainActivity extends Activity {
     }
 
     private String getConnectedWifiName() {
+        // 1. Try reading real SSID via root (bypasses Android location permission requirement)
+        String wifiStatus = runRootCommand("cmd wifi status 2>/dev/null || dumpsys wifi 2>/dev/null || true");
+        if (wifiStatus != null) {
+            java.util.regex.Pattern p = java.util.regex.Pattern.compile("connected to \"([^\"]+)\"");
+            java.util.regex.Matcher m = p.matcher(wifiStatus);
+            if (m.find()) {
+                return "Wi-Fi: " + m.group(1);
+            }
+            java.util.regex.Pattern p2 = java.util.regex.Pattern.compile("SSID:\\s*\"([^\"]+)\"");
+            java.util.regex.Matcher m2 = p2.matcher(wifiStatus);
+            if (m2.find()) {
+                return "Wi-Fi: " + m2.group(1);
+            }
+            java.util.regex.Pattern p3 = java.util.regex.Pattern.compile("SSID:\\s*([a-zA-Z0-9_-]+)");
+            java.util.regex.Matcher m3 = p3.matcher(wifiStatus);
+            if (m3.find() && !m3.group(1).equals("<unknown") && !m3.group(1).equals("NONE")) {
+                return "Wi-Fi: " + m3.group(1);
+            }
+        }
+
+        // 2. Fallback to Android WifiManager
         try {
             WifiManager wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
             if (wifiManager != null) {
