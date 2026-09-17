@@ -1066,7 +1066,7 @@ public class MainActivity extends Activity {
             boolean downloaded = false;
 
             try {
-                String urlStr = "https://github.com/killindodo/PrintServer-App/releases/latest/download/pinion-core.zip";
+                String urlStr = "https://github.com/killindodo/pinion/releases/latest/download/pinion-core.zip";
                 URL url = new URL(urlStr);
                 HttpURLConnection conn = (HttpURLConnection) url.openConnection();
                 conn.setInstanceFollowRedirects(true);

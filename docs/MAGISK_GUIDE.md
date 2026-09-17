@@ -49,7 +49,7 @@ pinion-core.zip
 6. Once completed, plug in your printer and tap **▶ START**.
 
 ### Method B: Manual Magisk / KernelSU Flashing
-1. Download `pinion-core.zip` from [Pinion Releases](https://github.com/killindodo/PrintServer-App/releases).
+1. Download `pinion-core.zip` from [Pinion Releases](https://github.com/killindodo/pinion/releases).
 2. Open the **Magisk Manager** or **KernelSU** app.
 3. Navigate to **Modules** -> **Install from storage**.
 4. Select `pinion-core.zip`.
@@ -73,8 +73,8 @@ To package the Magisk module locally:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/killindodo/PrintServer-App.git
-cd PrintServer-App
+git clone https://github.com/killindodo/pinion.git
+cd pinion
 
 # 2. Build the module package
 cd magisk

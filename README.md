@@ -68,7 +68,7 @@ Print on the go from any smartphone or tablet browser on the local Wi-Fi:
 Pinion requires root access and the background print engine (CUPS, Avahi, Python 3, and printer drivers).
 
 ### Option 1: In-App 1-Click Install (Recommended)
-1. Install and launch **[PrintServer-Root.apk](https://github.com/killindodo/PrintServer-App/releases)** on your rooted Android device.
+1. Install and launch **[PrintServer-Root.apk](https://github.com/killindodo/pinion/releases)** on your rooted Android device.
 2. Grant Root permissions when prompted by Magisk / KernelSU / APatch.
 3. The app detects that the engine is missing and displays **SETUP NEEDED**.
 4. Tap **⚡ Install Print Engine (Magisk Module)**.
@@ -76,7 +76,7 @@ Pinion requires root access and the background print engine (CUPS, Avahi, Python
 6. Connect your printer via USB OTG and tap **▶ START**!
 
 ### Option 2: Flash Magisk Module Manually
-1. Download `pinion-core.zip` from the latest [GitHub Releases](https://github.com/killindodo/PrintServer-App/releases).
+1. Download `pinion-core.zip` from the latest [GitHub Releases](https://github.com/killindodo/pinion/releases).
 2. Open the **Magisk** (or KernelSU / APatch) app.
 3. Go to **Modules** > **Install from storage** and select `pinion-core.zip`.
 4. Launch Pinion and tap **▶ START**.
